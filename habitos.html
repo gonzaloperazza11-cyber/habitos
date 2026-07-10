@@ -976,20 +976,33 @@ function rTasks(){
     if(a.completada&&!b.completada)return 1;if(!a.completada&&b.completada)return -1;
     return new Date(a.fecha_limite||'9999')-new Date(b.fecha_limite||'9999');
   });
-  if(!tasks.length){cont.innerHTML='<div class="tasks-empty"><div style="font-size:32px;opacity:.3">&#x1F4CB;</div><div style="font-size:14px;color:var(--text2);font-weight:500;margin-top:4px">Sin actividades</div></div>';return;}
-  cont.innerHTML=tasks.map(function(t){
+  if(!tasks.length){
+    cont.innerHTML='<div class="tasks-empty"><div style="font-size:32px;opacity:.3">&#x1F4CB;</div><div style="font-size:14px;color:var(--text2);font-weight:500;margin-top:4px">Sin actividades</div></div>';
+    return;
+  }
+  cont.innerHTML='';
+  tasks.forEach(function(t){
     var titulo=t.titulo||'(sin t\u00edtulo)';
     var fecha=t.fecha_limite||'';
     var cat=t.categoria||'Personal';
     var dias=fecha?dDiff(fecha):999;
     var st=tSt(dias,t.completada);
-    return '<div class="task-card'+(t.completada?' t-done':'')+'" onclick="oEditTask(\''+t.id+'\')">'
-      +'<div class="tc-check'+(t.completada?' on':'')+'" onclick="event.stopPropagation();togT(\''+t.id+'\','+!t.completada+')"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>'
+    var div=document.createElement('div');
+    div.className='task-card'+(t.completada?' t-done':'');
+    div.innerHTML=
+      '<div class="tc-check'+(t.completada?' on':'')+'" id="chk-'+t.id+'"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>'
       +'<div class="tc-body"><div class="tc-title">'+titulo+'</div>'
       +'<div class="tc-meta"><span class="tc-badge '+st.c+'">'+st.l+'</span>'+(fecha?'<span class="tc-date">'+dDsp(fecha)+'</span>':'')+'<span class="tc-cat '+cat+'">'+cat+'</span>'
       +(t.detalle?'<span style="font-size:12px;color:var(--text3)">'+t.detalle+'</span>':'')+'</div></div>'
-      +'<div style="color:var(--text3);font-size:18px;padding:0 2px;flex-shrink:0">&#x203A;</div></div>';
-  }).join('');
+      +'<div style="color:var(--text3);font-size:18px;padding:0 2px;flex-shrink:0">&#x203A;</div>';
+    // Listeners sin inline JS para evitar problemas de escape
+    div.querySelector('.tc-check').addEventListener('click', function(e){
+      e.stopPropagation();
+      togT(t.id, !t.completada);
+    });
+    div.addEventListener('click', function(){ oEditTask(t.id); });
+    cont.appendChild(div);
+  });
 }
 function tSt(d,done){if(done)return{c:'c',l:'Completada'};if(d<0)return{c:'a',l:'Atrasada'};if(d===0)return{c:'u',l:'Hoy'};if(d<=5)return{c:'p',l:'Pronto'};return{c:'o',l:'A tiempo'};}
 
@@ -1061,11 +1074,19 @@ function delTFromEdit(){
   var id=document.getElementById('etId').value;
   if(!confirm('Eliminar esta actividad?'))return;
   var t=S.tasks.find(function(x){return x.id===id;});
+  // Eliminar de UI inmediatamente
+  S.tasks=S.tasks.filter(function(x){return x.id!==id;});
+  bIdx(); rTasks(); rBoard(); if(t)rCalCell(t.fecha_limite||'');
   closeBs('bsEditTask');
+  toast('Eliminada','ok');
+  // Persistir en background
   sbDelete('tasks',id).then(function(){
     if(t&&t.cal_event_id) calDelete(t.cal_event_id);
-    S.tasks=S.tasks.filter(function(x){return x.id!==id;});
-    bIdx();rTasks();if(t)rCalCell(t.fecha_limite);toast('Eliminada','ok');
+  }).catch(function(){
+    // Revertir si falla
+    if(t) S.tasks.push(t);
+    bIdx(); rTasks(); rBoard();
+    toast('Error al eliminar','er');
   });
 }
 function sHol(){
