@@ -66,10 +66,16 @@ input,select,textarea{font-size:16px !important}
 
 /* HABIT LIST */
 .habit-list{margin:18px 20px 0;display:flex;flex-direction:column;gap:3px}
-.habit-row{display:flex;align-items:center;gap:14px;padding:18px 18px;background:var(--surface);border-radius:var(--r);cursor:pointer;transition:background .12s;border:1.5px solid transparent;position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;min-height:68px}
+.habit-row{display:flex;align-items:center;gap:14px;padding:18px 18px;background:var(--surface);border-radius:var(--r);cursor:pointer;transition:background .12s,opacity .15s,transform .15s;border:1.5px solid transparent;position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;min-height:68px}
 .habit-row::before{content:'';position:absolute;inset:0;background:var(--accentbg);transform:scaleX(0);transform-origin:left;transition:transform .4s cubic-bezier(.4,0,.2,1);z-index:0}
 .habit-row.done{border-color:var(--accentbg)}
 .habit-row.done::before{transform:scaleX(1)}
+.habit-row.dragging{opacity:.35;transform:scale(.98)}
+.habit-row.drag-over{border-color:var(--accent3);background:var(--accentbg)}
+.habit-drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 2px;cursor:grab;flex-shrink:0;position:relative;z-index:2;opacity:.3;transition:opacity .15s}
+.habit-drag-handle:active{cursor:grabbing}
+.habit-row:hover .habit-drag-handle{opacity:.6}
+.habit-drag-handle span{display:block;width:16px;height:2px;background:var(--text3);border-radius:1px}
 .habit-color-bar{width:4px;height:36px;border-radius:2px;flex-shrink:0;position:relative;z-index:1}
 .habit-info{flex:1;min-width:0;position:relative;z-index:1}
 .habit-name{font-size:19px;font-weight:500;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -846,7 +852,10 @@ function rHoy() {
     var el=document.createElement('div');
     el.className='habit-row'+(done?' done':'')+(maxed?' maxed':'');
     el.dataset.hid=String(h.id);
-    el.innerHTML='<div class="habit-color-bar" style="background:'+h.color+'"></div>'
+    el.draggable=true;
+    el.innerHTML=
+      '<div class="habit-drag-handle"><span></span><span></span><span></span></div>'
+      +'<div class="habit-color-bar" style="background:'+h.color+'"></div>'
       +'<div class="habit-info"><div class="habit-name">'+h.nombre+'</div>'
       +'<div class="habit-freq-pill">'+(h.hora?'<span style="color:var(--text3);margin-right:6px">'+h.hora+'</span>':'')+wl+'/'+h.frecuencia_max+'\u00d7</div></div>'
       +'<div class="habit-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>';
@@ -854,11 +863,103 @@ function rHoy() {
   });
   cont.appendChild(frag);
   cont.dataset.allDone=allDone?'1':'0';
+
+  // Click para marcar (ignorar si viene del handle)
   cont.onclick=function(e){
+    if(e.target.closest('.habit-drag-handle'))return;
     var row=e.target.closest('.habit-row:not(.maxed)');
     if(!row||isHol)return;
     togH(ds,row.dataset.hid,row);
   };
+
+  // Drag & drop reordenamiento
+  initHabitDnD(cont,ds);
+}
+
+function initHabitDnD(cont,ds){
+  var dragging=null, touchClone=null;
+
+  cont.querySelectorAll('.habit-row').forEach(function(row){
+    // Desktop drag
+    row.addEventListener('dragstart',function(e){
+      dragging=row; row.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',row.dataset.hid);
+    });
+    row.addEventListener('dragend',function(){
+      row.classList.remove('dragging','drag-over');
+      cont.querySelectorAll('.habit-row').forEach(function(r){r.classList.remove('drag-over');});
+      dragging=null;
+      saveHabitOrder(cont);
+    });
+    row.addEventListener('dragover',function(e){
+      e.preventDefault();
+      if(!dragging||dragging===row)return;
+      row.classList.add('drag-over');
+      var rows=Array.from(cont.querySelectorAll('.habit-row'));
+      var fromIdx=rows.indexOf(dragging);
+      var toIdx=rows.indexOf(row);
+      if(fromIdx<toIdx) cont.insertBefore(dragging,row.nextSibling);
+      else cont.insertBefore(dragging,row);
+    });
+    row.addEventListener('dragleave',function(){row.classList.remove('drag-over');});
+    row.addEventListener('drop',function(e){e.preventDefault();row.classList.remove('drag-over');});
+
+    // Touch drag mobile
+    var handle=row.querySelector('.habit-drag-handle');
+    handle.addEventListener('touchstart',function(e){
+      dragging=row; row.classList.add('dragging');
+      touchClone=row.cloneNode(true);
+      touchClone.style.cssText='position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:'+row.offsetWidth+'px;left:'+row.getBoundingClientRect().left+'px;top:'+e.touches[0].clientY+'px;transform:scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,.15);border-radius:'+getComputedStyle(row).borderRadius;
+      document.body.appendChild(touchClone);
+    },{passive:true});
+
+    handle.addEventListener('touchmove',function(e){
+      if(!touchClone)return; e.preventDefault();
+      var t=e.touches[0];
+      touchClone.style.top=(t.clientY-row.offsetHeight/2)+'px';
+      touchClone.style.display='none';
+      var el=document.elementFromPoint(t.clientX,t.clientY);
+      touchClone.style.display='';
+      var target=el&&el.closest('.habit-row');
+      cont.querySelectorAll('.habit-row').forEach(function(r){r.classList.remove('drag-over');});
+      if(target&&target!==row){
+        target.classList.add('drag-over');
+        var rows=Array.from(cont.querySelectorAll('.habit-row'));
+        if(rows.indexOf(row)<rows.indexOf(target)) cont.insertBefore(row,target.nextSibling);
+        else cont.insertBefore(row,target);
+      }
+    },{passive:false});
+
+    handle.addEventListener('touchend',function(){
+      if(touchClone){touchClone.remove();touchClone=null;}
+      row.classList.remove('dragging');
+      cont.querySelectorAll('.habit-row').forEach(function(r){r.classList.remove('drag-over');});
+      dragging=null;
+      saveHabitOrder(cont);
+    });
+  });
+}
+
+function saveHabitOrder(cont){
+  var ids=Array.from(cont.querySelectorAll('.habit-row')).map(function(r){return r.dataset.hid;});
+  // Reordenar S.habits seg\u00FAn el nuevo orden visual
+  var newOrder=[];
+  ids.forEach(function(id){
+    var h=S.habits.find(function(h){return String(h.id)===id;});
+    if(h)newOrder.push(h);
+  });
+  // Agregar los que no est\u00E1n en la lista (inactivos)
+  S.habits.forEach(function(h){if(ids.indexOf(String(h.id))===-1)newOrder.push(h);});
+  S.habits=newOrder;
+  // Persistir en Supabase
+  ids.forEach(function(id,i){
+    fetch(SB_URL+'/rest/v1/habits?id=eq.'+id,{
+      method:'PATCH',
+      headers:Object.assign({},SB_HDRS,{'Prefer':'return=minimal'}),
+      body:JSON.stringify({orden:i})
+    });
+  });
 }
 
 function togH(fecha,hid,el){
