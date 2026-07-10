@@ -351,8 +351,7 @@ input,select,textarea{font-size:16px !important}
       <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 8px">
         <div class="section-label" style="padding:0;margin:0">Actividades futuras</div>
         <div style="display:flex;gap:8px">
-          <button class="pill-btn" style="background:var(--bg2);color:var(--text2)" onclick="syncCalendar();toast('Sincronizando...','ok')">&#x21bb; Sync</button>
-          <button class="pill-btn" onclick="oAddTask()">+ Nueva</button>
+<button class="pill-btn" onclick="oAddTask()">+ Nueva</button>
         </div>
       </div>
       <div class="tasks-wrap" id="tasksList"></div>
@@ -381,11 +380,6 @@ input,select,textarea{font-size:16px !important}
       <div style="padding:22px 20px 0;display:flex;align-items:center;justify-content:space-between">
         <div class="page-title">Tablero</div>
         <button class="pill-btn" onclick="oAddKanban()">+ Nueva</button>
-      </div>
-      <!-- Actividades del calendario integradas -->
-      <div style="padding:14px 20px 0">
-        <div class="section-label" style="padding:0;margin-bottom:10px">Actividades</div>
-        <div class="kb-col-inline" id="kbTasks"></div>
       </div>
       <!-- Kanban propio -->
       <div style="padding:16px 20px 0">
@@ -747,7 +741,6 @@ function initData() {
     rAll();
     new ResizeObserver(rChart).observe(document.getElementById('wc').parentElement);
     // Sincronizar Calendar \u2014 reimporta los que se limpiaron
-    setTimeout(syncCalendar, 1000);
   }).catch(function(e){
     var ls = document.getElementById('ls');
     ls.querySelector('.ls-text').textContent = 'Error: ' + e.message;
@@ -1320,36 +1313,9 @@ function loadKanban() {
 
 // \u2500\u2500 BOARD RENDER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function rBoard() {
-  rKbTasks();
   rKbCards();
 }
 
-function rKbTasks() {
-  var cont = document.getElementById('kbTasks');
-  if (!cont) return;
-  var tasks = S.tasks.slice().sort(function(a,b){
-    return new Date(a.fecha_limite) - new Date(b.fecha_limite);
-  });
-  if (!tasks.length) {
-    cont.innerHTML = '<div style="font-size:14px;color:var(--text3);padding:8px 0">Sin actividades</div>';
-    return;
-  }
-  cont.innerHTML = tasks.map(function(t) {
-    var titulo = t.titulo || '(sin t\u00edtulo)';
-    var fecha  = t.fecha_limite || '';
-    var dias   = fecha ? dDiff(fecha) : 999;
-    var st     = t.completada ? 'done' : dias < 0 ? 'todo' : dias <= 3 ? 'doing' : 'todo';
-    var stLabel= t.completada ? '\u2713' : dias < 0 ? '!' : dias <= 3 ? '\u25b6' : '\u25cb';
-    return '<div class="kb-task-card" onclick="oEditTask(\''+t.id+'\''+')">'
-      +'<div class="kb-task-status '+st+'" onclick="event.stopPropagation();togT(\''+t.id+'\','+!t.completada+')">'+stLabel+'</div>'
-      +'<div class="kb-task-info">'
-      +'<div class="kb-task-name'+(t.completada?' done':'')+'">'+titulo+'</div>'
-      +'<div class="kb-task-date">'+(fecha?dDsp(fecha):'')+(t.categoria?' \u00b7 '+t.categoria:'')+'</div>'
-      +'</div>'
-      +'<button onclick="event.stopPropagation();delTaskBoard(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:4px 6px;flex-shrink:0">\u2715</button>'
-      +'</div>';
-  }).join('');
-}
 
 function rKbCards() {
   var cols = {todo:[], doing:[], done:[]};
