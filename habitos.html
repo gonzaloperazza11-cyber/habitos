@@ -353,6 +353,11 @@ input,select,textarea{font-size:16px !important}
           <div class="cal-dow">J</div><div class="cal-dow">V</div><div class="cal-dow">S</div><div class="cal-dow">D</div>
         </div>
         <div class="cal-grid" id="calGrid"></div>
+        <div style="display:flex;gap:14px;padding:10px 2px 0;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><div style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0"></div>H\u00e1bitos completados</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><div style="width:7px;height:7px;border-radius:50%;background:#D97706;flex-shrink:0"></div>Actividad pendiente</div>
+          <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)"><div style="width:7px;height:7px;border-radius:50%;background:#DC2626;flex-shrink:0"></div>Feriado</div>
+        </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 8px">
         <div class="section-label" style="padding:0;margin:0">Actividades futuras</div>
@@ -491,9 +496,45 @@ input,select,textarea{font-size:16px !important}
     <div class="bs-handle"></div>
     <div class="bs-header">
       <div class="bs-title">Mis h&aacute;bitos</div>
-      <button onclick="closeBs('bsMH');openBs('bsAddHabit')" style="height:44px;padding:0 20px;background:var(--accent);color:white;border:none;border-radius:99px;font-family:var(--f);font-size:16px;font-weight:600;cursor:pointer">+ Nuevo</button>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button onclick="closeBs('bsMH');openBs('bsAddHabit')" style="height:44px;padding:0 20px;background:var(--accent);color:white;border:none;border-radius:99px;font-family:var(--f);font-size:16px;font-weight:600;cursor:pointer">+ Nuevo</button>
+        <button class="bs-close" onclick="closeBs('bsMH')">&#x2715;</button>
+      </div>
     </div>
     <div class="mh-list" id="mhList"></div>
+  </div>
+</div>
+
+<!-- EDIT HABIT SHEET -->
+<div class="bs-overlay" id="bsEditHabit" onclick="if(event.target===this)closeBs('bsEditHabit')">
+  <div class="bs">
+    <div class="bs-handle"></div>
+    <div class="bs-header"><div class="bs-title">Editar h&aacute;bito</div><button class="bs-close" onclick="closeBs('bsEditHabit');openBs('bsMH')">&#x2715;</button></div>
+    <div class="bs-body">
+      <input type="hidden" id="ehId">
+      <div class="bs-field"><label class="bs-label">Nombre *</label><input class="bs-input" id="ehN" placeholder="Nombre del h&aacute;bito"></div>
+      <div class="bs-row">
+        <div class="bs-field"><label class="bs-label">Veces/semana</label><input type="number" class="bs-input" id="ehF" min="1" max="7" style="text-align:center;font-weight:600"></div>
+        <div class="bs-field"><label class="bs-label">Hora</label><input type="time" class="bs-input" id="ehH"></div>
+      </div>
+      <div class="bs-field">
+        <label class="bs-label">Color</label>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;padding:6px 0" id="ehColors">
+          <div class="color-swatch" style="background:#1B4332" data-color="#1B4332" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#1D4ED8" data-color="#1D4ED8" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#7C3AED" data-color="#7C3AED" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#B45309" data-color="#B45309" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#DC2626" data-color="#DC2626" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#DB2777" data-color="#DB2777" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#059669" data-color="#059669" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#0891B2" data-color="#0891B2" onclick="selColorEdit(this)"></div>
+          <div class="color-swatch" style="background:#52525B" data-color="#52525B" onclick="selColorEdit(this)"></div>
+        </div>
+        <input type="hidden" id="ehC" value="#1B4332">
+      </div>
+      <button class="bs-submit" onclick="sEditHabit()">Guardar cambios</button>
+      <button onclick="delHabitFromEdit()" style="width:100%;padding:20px;background:none;border:2px solid #FCA5A5;border-radius:18px;color:var(--red);font-family:var(--f);font-size:17px;font-weight:600;cursor:pointer">Eliminar h&aacute;bito</button>
+    </div>
   </div>
 </div>
 
@@ -1028,10 +1069,13 @@ function rCal(){
       bf.style.width=(aLen?Math.round(logs.length/aLen*100):0)+'%';
       bar.appendChild(bf);el.appendChild(bar);
     }
-    var dots=document.createElement('div');dots.style.cssText='display:flex;gap:2px;margin-top:1px';
-    if(logs.length){var dt=document.createElement('div');dt.className='cal-dot';dt.style.background='var(--accent3)';dots.appendChild(dt);}
-    if(IDX.taskByDate[ds]){var dt2=document.createElement('div');dt2.className='cal-dot';dt2.style.background='var(--amber)';dots.appendChild(dt2);}
+    var dots=document.createElement('div');dots.style.cssText='display:flex;gap:3px;margin-top:2px;justify-content:center';
+    if(IDX.taskByDate[ds]){var dt2=document.createElement('div');dt2.className='cal-dot';dt2.style.cssText='background:#D97706;width:6px;height:6px';dots.appendChild(dt2);}
+    if(hSet[ds]){var dt3=document.createElement('div');dt3.className='cal-dot';dt3.style.cssText='background:#DC2626;width:6px;height:6px';dots.appendChild(dt3);}
+    if(logs.length){var dt=document.createElement('div');dt.className='cal-dot';dt.style.cssText='background:var(--accent3);width:6px;height:6px';dots.appendChild(dt);}
     if(dots.children.length)el.appendChild(dots);
+    // Fondo rojizo sutil para feriados
+    if(hSet[ds]){el.style.background='rgba(220,38,38,.07)';}
     frag.appendChild(el);
   }
   grid.appendChild(frag);
@@ -1307,19 +1351,67 @@ function rChart(){
 function oMH(){rMHL();openBs('bsMH');}
 function rMHL(){
   var cont=document.getElementById('mhList');
-  if(!S.habits.length){cont.innerHTML='<div style="padding:20px 0;font-size:15px;color:var(--text3)">Sin h\u00e1bitos todav\u00eda</div>';return;}
+  if(!S.habits.length){cont.innerHTML='<div style="padding:20px 0;font-size:16px;color:var(--text3)">Sin h\u00e1bitos todav\u00eda</div>';return;}
   cont.innerHTML=S.habits.map(function(h){
-    return '<div class="mh-item" data-id="'+h.id+'">'
-      +'<div class="mh-drag"><span></span><span></span><span></span></div>'
+    return '<div class="mh-item" data-id="'+h.id+'" onclick="oEditHabit(\''+h.id+'\')" style="cursor:pointer">'
+      +'<div class="mh-drag" onclick="event.stopPropagation()"><span></span><span></span><span></span></div>'
       +'<div class="mh-dot" style="background:'+h.color+'"></div>'
       +'<div class="mh-name">'+h.nombre+'</div>'
       +'<div class="mh-freq">'+h.frecuencia_max+'\u00d7</div>'
-      +'<button class="mh-tog'+(h.activo?' on':'')+'" onclick="togHA(\''+h.id+'\','+!h.activo+')">'+(h.activo?'Activo':'Inactivo')+'</button>'
-      +'<button class="mh-del" onclick="delH(\''+h.id+'\')">&#x2715;</button>'
+      +'<button class="mh-tog'+(h.activo?' on':'')+'" onclick="event.stopPropagation();togHA(\''+h.id+'\','+!h.activo+')">'+(h.activo?'Activo':'Inactivo')+'</button>'
+      +'<button class="mh-del" onclick="event.stopPropagation();delH(\''+h.id+'\')">&#x2715;</button>'
       +'</div>';
   }).join('');
 }
-function selColor(el){document.querySelectorAll('.color-swatch').forEach(function(s){s.classList.remove('active');});el.classList.add('active');document.getElementById('mhC').value=el.dataset.color;}
+function selColor(el){document.querySelectorAll('#bsAddHabit .color-swatch').forEach(function(s){s.classList.remove('active');});el.classList.add('active');document.getElementById('mhC').value=el.dataset.color;}
+function selColorEdit(el){document.querySelectorAll('#ehColors .color-swatch').forEach(function(s){s.classList.remove('active');});el.classList.add('active');document.getElementById('ehC').value=el.dataset.color;}
+
+function oEditHabit(id){
+  var h=S.habits.find(function(h){return h.id===id;});if(!h)return;
+  document.getElementById('ehId').value=h.id;
+  document.getElementById('ehN').value=h.nombre||'';
+  document.getElementById('ehF').value=h.frecuencia_max||7;
+  document.getElementById('ehH').value=h.hora||'';
+  document.getElementById('ehC').value=h.color||'#1B4332';
+  // Marcar color activo
+  document.querySelectorAll('#ehColors .color-swatch').forEach(function(s){
+    s.classList.toggle('active', s.dataset.color===h.color);
+  });
+  closeBs('bsMH');
+  openBs('bsEditHabit');
+}
+
+function sEditHabit(){
+  var id=document.getElementById('ehId').value;
+  var n=document.getElementById('ehN').value.trim();
+  var f=parseInt(document.getElementById('ehF').value)||7;
+  var hh=document.getElementById('ehH').value||'';
+  var c=document.getElementById('ehC').value;
+  if(!n){toast('Escrib\u00ed el nombre','er');return;}
+  var h=S.habits.find(function(h){return h.id===id;});if(!h)return;
+  // Actualizar optimista
+  h.nombre=n; h.frecuencia_max=f; h.hora=hh; h.color=c;
+  closeBs('bsEditHabit');
+  openBs('bsMH');
+  rMHL(); rAll();
+  // Persistir
+  fetch(SB_URL+'/rest/v1/habits?id=eq.'+id,{
+    method:'PATCH',
+    headers:Object.assign({},SB_HDRS,{'Prefer':'return=minimal'}),
+    body:JSON.stringify({nombre:n,frecuencia_max:f,hora:hh,color:c})
+  }).then(function(){toast('H\u00e1bito actualizado','ok');}).catch(function(){toast('Error al guardar','er');});
+}
+
+function delHabitFromEdit(){
+  var id=document.getElementById('ehId').value;
+  if(!confirm('Eliminar h\u00e1bito y sus registros?'))return;
+  closeBs('bsEditHabit');
+  S.habits=S.habits.filter(function(h){return h.id!==id;});
+  S.log=S.log.filter(function(l){return String(l.habit_id)!==String(id);});
+  bIdx(); rMHL(); rAll(); toast('Eliminado','ok');
+  fetch(SB_URL+'/rest/v1/habits?id=eq.'+id,{method:'DELETE',headers:SB_HDRS});
+  fetch(SB_URL+'/rest/v1/log?habit_id=eq.'+id,{method:'DELETE',headers:SB_HDRS});
+}
 function sAH(){
   var n=document.getElementById('mhN').value.trim(),f=parseInt(document.getElementById('mhF').value)||7,c=document.getElementById('mhC').value,h=document.getElementById('mhH').value||'';
   if(!n){toast('Escrib\u00ed el nombre','er');return;}
