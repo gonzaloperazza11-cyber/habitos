@@ -259,7 +259,7 @@ input,select,textarea{font-size:16px !important}
 .google-btn{display:flex;align-items:center;gap:12px;padding:16px 28px;background:white;border:1.5px solid var(--border);border-radius:14px;cursor:pointer;font-family:var(--f);font-size:16px;font-weight:600;color:var(--text);transition:box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .google-btn:hover{box-shadow:0 4px 12px rgba(0,0,0,.12)}
 .google-btn svg{width:22px;height:22px;flex-shrink:0}
-.user-badge{position:fixed;top:12px;right:12px;z-index:60;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:6px 12px 6px 6px;cursor:pointer}
+.user-badge{position:fixed;bottom:calc(var(--nav) + var(--safe) + 12px);right:16px;z-index:60;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:6px 12px 6px 6px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .user-avatar{width:28px;height:28px;border-radius:50%;object-fit:cover}
 .user-name{font-size:13px;font-weight:500;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
@@ -1013,7 +1013,18 @@ function togT(id,val){
   sbPatch('tasks',id,{completada:val}).then(function(){
     if(t){t.completada=val;bIdx();}
     if(t&&t.cal_event_id) calComplete(t.cal_event_id,t.titulo,val);
-    rTasks();toast(val?'Completada':'Reabierta','ok');
+    rTasks(); rBoard(); toast(val?'Completada':'Reabierta','ok');
+  });
+}
+
+function delTaskBoard(id) {
+  if (!confirm('Eliminar esta actividad?')) return;
+  var t = S.tasks.find(function(t){ return t.id===id; });
+  sbDelete('tasks', id).then(function(){
+    if (t&&t.cal_event_id) calDelete(t.cal_event_id);
+    S.tasks = S.tasks.filter(function(t){ return t.id!==id; });
+    bIdx(); rTasks(); rBoard(); if(t) rCalCell(t.fecha_limite);
+    toast('Eliminada','ok');
   });
 }
 function oEditTask(id){
@@ -1237,15 +1248,19 @@ function rKbTasks() {
     return;
   }
   cont.innerHTML = tasks.map(function(t) {
-    var dias = dDiff(t.fecha_limite);
-    var st = t.completada ? 'done' : dias < 0 ? 'todo' : dias <= 3 ? 'doing' : 'todo';
-    var stLabel = t.completada ? '\u2713' : dias < 0 ? '!' : dias <= 3 ? '\u25b6' : '\u25cb';
+    var titulo = t.titulo || '(sin t\u00edtulo)';
+    var fecha  = t.fecha_limite || '';
+    var dias   = fecha ? dDiff(fecha) : 999;
+    var st     = t.completada ? 'done' : dias < 0 ? 'todo' : dias <= 3 ? 'doing' : 'todo';
+    var stLabel= t.completada ? '\u2713' : dias < 0 ? '!' : dias <= 3 ? '\u25b6' : '\u25cb';
     return '<div class="kb-task-card" onclick="oEditTask(\''+t.id+'\''+')">'
       +'<div class="kb-task-status '+st+'" onclick="event.stopPropagation();togT(\''+t.id+'\','+!t.completada+')">'+stLabel+'</div>'
       +'<div class="kb-task-info">'
-      +'<div class="kb-task-name'+(t.completada?' done':'')+'">'+t.titulo+'</div>'
-      +'<div class="kb-task-date">'+dDsp(t.fecha_limite)+(t.categoria?' \u00b7 '+t.categoria:'')+'</div>'
-      +'</div></div>';
+      +'<div class="kb-task-name'+(t.completada?' done':'')+'">'+titulo+'</div>'
+      +'<div class="kb-task-date">'+(fecha?dDsp(fecha):'')+(t.categoria?' \u00b7 '+t.categoria:'')+'</div>'
+      +'</div>'
+      +'<button onclick="event.stopPropagation();delTaskBoard(\''+t.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;padding:4px 6px;flex-shrink:0">\u2715</button>'
+      +'</div>';
   }).join('');
 }
 
