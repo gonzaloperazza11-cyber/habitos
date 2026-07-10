@@ -217,6 +217,30 @@ input,select,textarea{font-size:16px !important}
 /* CONFETTI */
 @keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(50px) rotate(540deg);opacity:0}}
 
+/* KANBAN */
+.kb-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:16px}
+.kb-col{background:var(--bg2);border-radius:14px;padding:10px;min-height:100px}
+.kb-col-header{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:12px;font-weight:600;color:var(--text2)}
+.kb-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.kb-count{margin-left:auto;background:var(--border);border-radius:99px;padding:1px 6px;font-size:11px;font-weight:600;color:var(--text3)}
+.kb-cards{display:flex;flex-direction:column;gap:6px;min-height:40px}
+.kb-card{background:var(--surface);border-radius:10px;padding:10px;border:1px solid var(--border);cursor:grab;font-size:13px;font-weight:500;line-height:1.3;transition:box-shadow .15s;user-select:none;-webkit-user-select:none}
+.kb-card:active{cursor:grabbing;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.kb-card.dragging{opacity:.4}
+.kb-card-desc{font-size:11px;color:var(--text3);margin-top:4px;font-weight:400}
+.kb-col-inline{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
+.kb-task-card{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);cursor:pointer}
+.kb-task-status{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;cursor:pointer}
+.kb-task-status.todo{background:#FEF3C7;color:#92400E}
+.kb-task-status.doing{background:#DBEAFE;color:#1D4ED8}
+.kb-task-status.done{background:var(--accentbg);color:var(--accent)}
+.kb-task-info{flex:1;min-width:0}
+.kb-task-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kb-task-name.done{text-decoration:line-through;opacity:.5}
+.kb-task-date{font-size:11px;color:var(--text3);margin-top:2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinning{animation:spin .8s linear infinite}
+
 /* TOAST */
 .tz{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .to{background:#18181B;color:white;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,.2);animation:tin .2s ease,tout .3s ease 2.2s forwards;white-space:nowrap}
@@ -347,6 +371,37 @@ input,select,textarea{font-size:16px !important}
       <div class="habits-summary" id="habitsSummary"></div>
     </div>
 
+    <!-- KANBAN -->
+    <div class="screen" id="s-board">
+      <div style="padding:22px 20px 0;display:flex;align-items:center;justify-content:space-between">
+        <div class="page-title">Tablero</div>
+        <button class="pill-btn" onclick="oAddKanban()">+ Nueva</button>
+      </div>
+      <!-- Actividades del calendario integradas -->
+      <div style="padding:14px 20px 0">
+        <div class="section-label" style="padding:0;margin-bottom:10px">Actividades</div>
+        <div class="kb-col-inline" id="kbTasks"></div>
+      </div>
+      <!-- Kanban propio -->
+      <div style="padding:16px 20px 0">
+        <div class="section-label" style="padding:0;margin-bottom:10px">Tareas propias</div>
+        <div class="kb-cols" id="kbCols">
+          <div class="kb-col">
+            <div class="kb-col-header"><div class="kb-col-dot" style="background:#E85555"></div><span>Por hacer</span><span class="kb-count" id="kbCnt0">0</span></div>
+            <div class="kb-cards" id="kb0" ondragover="kbDragOver(event,'todo')" ondrop="kbDrop(event,'todo')"></div>
+          </div>
+          <div class="kb-col">
+            <div class="kb-col-header"><div class="kb-col-dot" style="background:#3B82F6"></div><span>En progreso</span><span class="kb-count" id="kbCnt1">0</span></div>
+            <div class="kb-cards" id="kb1" ondragover="kbDragOver(event,'doing')" ondrop="kbDrop(event,'doing')"></div>
+          </div>
+          <div class="kb-col">
+            <div class="kb-col-header"><div class="kb-col-dot" style="background:var(--accent)"></div><span>Hecho</span><span class="kb-count" id="kbCnt2">0</span></div>
+            <div class="kb-cards" id="kb2" ondragover="kbDragOver(event,'done')" ondrop="kbDrop(event,'done')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <nav class="nav">
@@ -360,6 +415,10 @@ input,select,textarea{font-size:16px !important}
         <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       </div>
       <span class="nav-label">Mes</span>
+    </button>
+    <button class="nav-btn" data-tab="board" onclick="goTab('board')">
+      <div class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg></div>
+      <span class="nav-label">Board</span>
     </button>
     <button class="nav-btn" data-tab="stats" onclick="goTab('stats')">
       <div class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
@@ -473,6 +532,27 @@ input,select,textarea{font-size:16px !important}
       <div class="bs-field"><label class="bs-label">Fecha</label><input class="bs-input" type="date" id="hFe" readonly></div>
       <div class="bs-field"><label class="bs-label">Descripci&oacute;n</label><input class="bs-input" id="hDe" placeholder="Ej: Feriado nacional"></div>
       <button class="bs-submit" onclick="sHol()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD KANBAN SHEET -->
+<div class="bs-overlay" id="bsKanban" onclick="if(event.target===this)closeBs('bsKanban')">
+  <div class="bs">
+    <div class="bs-handle"></div>
+    <div class="bs-header"><div class="bs-title">Nueva tarea</div><button class="bs-close" onclick="closeBs('bsKanban')">&#x2715;</button></div>
+    <div class="bs-body">
+      <input type="hidden" id="kbId">
+      <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="kbTi" placeholder="Ej: Preparar presentaci&oacute;n"></div>
+      <div class="bs-field"><label class="bs-label">Descripci&oacute;n</label><input class="bs-input" id="kbDe" placeholder="Opcional"></div>
+      <div class="bs-field"><label class="bs-label">Estado</label>
+        <select class="bs-select" id="kbSt">
+          <option value="todo">Por hacer</option>
+          <option value="doing">En progreso</option>
+          <option value="done">Hecho</option>
+        </select>
+      </div>
+      <button class="bs-submit" id="kbSubmit" onclick="sKanban()">Agregar tarea</button>
     </div>
   </div>
 </div>
@@ -629,12 +709,14 @@ function initData() {
     sbGet('habits','order=orden'),
     sbGet('log'),
     sbGet('tasks'),
-    sbGet('holidays')
+    sbGet('holidays'),
+    sbGet('kanban','order=orden')
   ]).then(function(results) {
     S.habits   = results[0] || [];
     S.log      = results[1] || [];
     S.tasks    = results[2] || [];
     S.holidays = results[3] || [];
+    S.kanban   = results[4] || [];
     bIdx();
     var ls = document.getElementById('ls');
     ls.style.opacity = '0';
@@ -645,6 +727,7 @@ function initData() {
     }, 420);
     rAll();
     new ResizeObserver(rChart).observe(document.getElementById('wc').parentElement);
+    setTimeout(syncCalendar, 1500);
   }).catch(function(e){
     var ls = document.getElementById('ls');
     ls.querySelector('.ls-text').textContent = 'Error: ' + e.message;
@@ -668,7 +751,7 @@ function bIdx() {
     }
   });
 }
-function rAll(){ rHoy(); rCal(); rTasks(); rStats(); }
+function rAll(){ rHoy(); rCal(); rTasks(); rStats(); rBoard(); }
 
 // \u2500\u2500 TAB NAV \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function goTab(tab) {
@@ -677,6 +760,7 @@ function goTab(tab) {
   document.getElementById('s-'+tab).classList.add('active');
   document.querySelector('.nav-btn[data-tab="'+tab+'"]').classList.add('on');
   if (tab==='stats') rChart();
+  if (tab==='board') rBoard();
 }
 
 // \u2500\u2500 HOY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1082,6 +1166,180 @@ function delH(id){
 // \u2500\u2500 SHEETS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function openBs(id){document.getElementById(id).classList.add('open');}
 function closeBs(id){document.getElementById(id).classList.remove('open');}
+
+// \u2500\u2500 CALENDAR SYNC \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function syncCalendar() {
+  if (!gToken) return;
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  var end   = new Date(now.getFullYear(), now.getMonth()+2, 0, 23, 59, 59).toISOString();
+  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events'
+    + '?timeMin=' + encodeURIComponent(start)
+    + '&timeMax=' + encodeURIComponent(end)
+    + '&singleEvents=true&orderBy=startTime&maxResults=100', {
+    headers: { 'Authorization': 'Bearer ' + gToken }
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    var items = data.items || [];
+    var existingCalIds = {};
+    S.tasks.forEach(function(t){ if(t.cal_event_id) existingCalIds[t.cal_event_id]=true; });
+    var toImport = items.filter(function(ev) {
+      if (!ev.start || !ev.start.date) return false; // solo all-day
+      if (existingCalIds[ev.id]) return false; // ya importado
+      var desc = ev.description || '';
+      if (desc.indexOf('[HabitTracker]') !== -1) return false; // propio
+      return true;
+    });
+    if (!toImport.length) { toast('Calendario al d\u00eda','ok'); return; }
+    var promises = toImport.map(function(ev) {
+      var id = 't' + Date.now() + Math.random().toString(36).slice(2,6);
+      var titulo = ev.summary || 'Evento';
+      var fecha  = ev.start.date;
+      return sbPost('tasks', {
+        id: id, titulo: titulo, fecha_limite: fecha,
+        detalle: (ev.description||'').replace('[HabitTracker]','').trim().slice(0,100),
+        categoria: 'Personal', completada: false, cal_event_id: ev.id
+      }).then(function(r) {
+        var task = Array.isArray(r)?r[0]:r;
+        S.tasks.push(task || {id:id,titulo:titulo,fecha_limite:fecha,detalle:'',categoria:'Personal',completada:false,cal_event_id:ev.id});
+      });
+    });
+    Promise.all(promises).then(function() {
+      bIdx(); rTasks(); rBoard();
+      toast(toImport.length + ' evento' + (toImport.length>1?'s':'') + ' importado' + (toImport.length>1?'s':''), 'ok');
+    });
+  }).catch(function(){ toast('Error al sincronizar','er'); });
+}
+
+// \u2500\u2500 KANBAN STATE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+S.kanban = [];
+
+function loadKanban() {
+  sbGet('kanban', 'order=orden').then(function(r) {
+    S.kanban = r || [];
+    rBoard();
+  });
+}
+
+// \u2500\u2500 BOARD RENDER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function rBoard() {
+  rKbTasks();
+  rKbCards();
+}
+
+function rKbTasks() {
+  var cont = document.getElementById('kbTasks');
+  if (!cont) return;
+  var tasks = S.tasks.slice().sort(function(a,b){
+    return new Date(a.fecha_limite) - new Date(b.fecha_limite);
+  });
+  if (!tasks.length) {
+    cont.innerHTML = '<div style="font-size:14px;color:var(--text3);padding:8px 0">Sin actividades</div>';
+    return;
+  }
+  cont.innerHTML = tasks.map(function(t) {
+    var dias = dDiff(t.fecha_limite);
+    var st = t.completada ? 'done' : dias < 0 ? 'todo' : dias <= 3 ? 'doing' : 'todo';
+    var stLabel = t.completada ? '\u2713' : dias < 0 ? '!' : dias <= 3 ? '\u25b6' : '\u25cb';
+    return '<div class="kb-task-card" onclick="oEditTask(\''+t.id+'\''+')">'
+      +'<div class="kb-task-status '+st+'" onclick="event.stopPropagation();togT(\''+t.id+'\','+!t.completada+')">'+stLabel+'</div>'
+      +'<div class="kb-task-info">'
+      +'<div class="kb-task-name'+(t.completada?' done':'')+'">'+t.titulo+'</div>'
+      +'<div class="kb-task-date">'+dDsp(t.fecha_limite)+(t.categoria?' \u00b7 '+t.categoria:'')+'</div>'
+      +'</div></div>';
+  }).join('');
+}
+
+function rKbCards() {
+  var cols = {todo:[], doing:[], done:[]};
+  S.kanban.forEach(function(k){ if(cols[k.estado]) cols[k.estado].push(k); });
+  ['todo','doing','done'].forEach(function(st,i) {
+    var cont = document.getElementById('kb'+i);
+    var cnt  = document.getElementById('kbCnt'+i);
+    if (!cont) return;
+    cnt.textContent = cols[st].length;
+    cont.innerHTML = cols[st].map(function(k) {
+      return '<div class="kb-card" draggable="true" data-id="'+k.id+'"'
+        +' ondragstart="kbDragStart(event,\''+k.id+'\')"'
+        +' ondragend="kbDragEnd(event)"'
+        +' onclick="oEditKanban(\''+k.id+'\')">'
+        +'<div>'+k.titulo+'</div>'
+        +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
+        +'</div>';
+    }).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px 0;text-align:center">Arrastr\u00e1 aqu\u00ed</div>';
+  });
+}
+
+// \u2500\u2500 KANBAN CRUD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function oAddKanban() {
+  document.getElementById('kbId').value = '';
+  document.getElementById('kbTi').value = '';
+  document.getElementById('kbDe').value = '';
+  document.getElementById('kbSt').value = 'todo';
+  document.getElementById('kbSubmit').textContent = 'Agregar tarea';
+  openBs('bsKanban');
+}
+
+function oEditKanban(id) {
+  var k = S.kanban.find(function(k){ return k.id===id; });
+  if (!k) return;
+  document.getElementById('kbId').value = k.id;
+  document.getElementById('kbTi').value = k.titulo;
+  document.getElementById('kbDe').value = k.descripcion || '';
+  document.getElementById('kbSt').value = k.estado || 'todo';
+  document.getElementById('kbSubmit').textContent = 'Guardar cambios';
+  openBs('bsKanban');
+}
+
+function sKanban() {
+  var id  = document.getElementById('kbId').value;
+  var ti  = document.getElementById('kbTi').value.trim();
+  var de  = document.getElementById('kbDe').value.trim();
+  var st  = document.getElementById('kbSt').value;
+  if (!ti) { toast('Escrib\u00ed el t\u00edtulo','er'); return; }
+  closeBs('bsKanban');
+  if (id) {
+    var k = S.kanban.find(function(k){ return k.id===id; });
+    if (k) { k.titulo=ti; k.descripcion=de; k.estado=st; }
+    sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st})
+      .then(function(){ rBoard(); toast('Tarea actualizada','ok'); });
+  } else {
+    var newId = 'k'+Date.now();
+    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length})
+      .then(function(r) {
+        var kb = Array.isArray(r)?r[0]:r;
+        S.kanban.push(kb || {id:newId,titulo:ti,descripcion:de,estado:st});
+        rBoard(); toast('Tarea agregada','ok');
+      });
+  }
+}
+
+// \u2500\u2500 KANBAN DRAG & DROP \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+var kbDragging = null;
+
+function kbDragStart(e, id) {
+  kbDragging = id;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function kbDragEnd(e) {
+  e.target.classList.remove('dragging');
+  kbDragging = null;
+}
+
+function kbDragOver(e, estado) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+
+function kbDrop(e, estado) {
+  e.preventDefault();
+  if (!kbDragging) return;
+  var k = S.kanban.find(function(k){ return k.id===kbDragging; });
+  if (!k || k.estado === estado) return;
+  k.estado = estado;
+  sbPatch('kanban', k.id, {estado: estado}).then(function(){ rBoard(); });
+}
 
 // \u2500\u2500 TOAST \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function toast(msg,type){var el=document.createElement('div');el.className='to '+(type||'ok');el.textContent=msg;document.getElementById('tz').appendChild(el);setTimeout(function(){el.remove();},2700);}
