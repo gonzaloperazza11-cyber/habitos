@@ -102,7 +102,8 @@ input,select,textarea{font-size:16px !important}
 
 /* TASKS */
 .tasks-wrap{padding:20px 20px 0;display:flex;flex-direction:column;gap:2px}
-.task-card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.task-card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);padding:16px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.05);transition:background .12s}
+.task-card:active{background:var(--bg2)}
 .task-card.t-done{opacity:.45}
 .task-card.t-done .tc-title{text-decoration:line-through}
 .tc-check{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;cursor:pointer;transition:all .15s}
@@ -224,10 +225,11 @@ input,select,textarea{font-size:16px !important}
 .kb-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .kb-count{margin-left:auto;background:var(--border);border-radius:99px;padding:1px 6px;font-size:11px;font-weight:600;color:var(--text3)}
 .kb-cards{display:flex;flex-direction:column;gap:6px;min-height:40px}
-.kb-card{background:var(--surface);border-radius:10px;padding:10px;border:1px solid var(--border);cursor:grab;font-size:13px;font-weight:500;line-height:1.3;transition:box-shadow .15s;user-select:none;-webkit-user-select:none}
-.kb-card:active{cursor:grabbing;box-shadow:0 4px 16px rgba(0,0,0,.12)}
-.kb-card.dragging{opacity:.4}
+.kb-card{background:var(--surface);border-radius:10px;padding:10px;border:1px solid var(--border);cursor:grab;font-size:13px;font-weight:500;line-height:1.3;transition:box-shadow .15s,opacity .15s;user-select:none;-webkit-user-select:none}
+.kb-card:active{cursor:grabbing}
+.kb-card.dragging{opacity:.35;box-shadow:0 8px 24px rgba(0,0,0,.15)}
 .kb-card-desc{font-size:11px;color:var(--text3);margin-top:4px;font-weight:400}
+.kb-cards.kb-over{background:var(--accentbg);border:2px dashed var(--accent3);border-radius:10px;transition:background .15s}
 .kb-col-inline{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
 .kb-task-card{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);cursor:pointer}
 .kb-task-status{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;cursor:pointer}
@@ -348,7 +350,10 @@ input,select,textarea{font-size:16px !important}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 8px">
         <div class="section-label" style="padding:0;margin:0">Actividades futuras</div>
-        <button class="pill-btn" onclick="oAddTask()">+ Nueva</button>
+        <div style="display:flex;gap:8px">
+          <button class="pill-btn" style="background:var(--bg2);color:var(--text2)" onclick="syncCalendar();toast('Sincronizando...','ok')">&#x21bb; Sync</button>
+          <button class="pill-btn" onclick="oAddTask()">+ Nueva</button>
+        </div>
       </div>
       <div class="tasks-wrap" id="tasksList"></div>
     </div>
@@ -388,15 +393,15 @@ input,select,textarea{font-size:16px !important}
         <div class="kb-cols" id="kbCols">
           <div class="kb-col">
             <div class="kb-col-header"><div class="kb-col-dot" style="background:#E85555"></div><span>Por hacer</span><span class="kb-count" id="kbCnt0">0</span></div>
-            <div class="kb-cards" id="kb0" ondragover="kbDragOver(event,'todo')" ondrop="kbDrop(event,'todo')"></div>
+            <div class="kb-cards" id="kb0" data-estado="todo"></div>
           </div>
           <div class="kb-col">
             <div class="kb-col-header"><div class="kb-col-dot" style="background:#3B82F6"></div><span>En progreso</span><span class="kb-count" id="kbCnt1">0</span></div>
-            <div class="kb-cards" id="kb1" ondragover="kbDragOver(event,'doing')" ondrop="kbDrop(event,'doing')"></div>
+            <div class="kb-cards" id="kb1" data-estado="doing"></div>
           </div>
           <div class="kb-col">
             <div class="kb-col-header"><div class="kb-col-dot" style="background:var(--accent)"></div><span>Hecho</span><span class="kb-count" id="kbCnt2">0</span></div>
-            <div class="kb-cards" id="kb2" ondragover="kbDragOver(event,'done')" ondrop="kbDrop(event,'done')"></div>
+            <div class="kb-cards" id="kb2" data-estado="done"></div>
           </div>
         </div>
       </div>
@@ -714,10 +719,22 @@ function initData() {
   ]).then(function(results) {
     S.habits   = results[0] || [];
     S.log      = results[1] || [];
-    S.tasks    = results[2] || [];
     S.holidays = results[3] || [];
     S.kanban   = results[4] || [];
+
+    // Filtrar y limpiar tareas sin t\u00EDtulo de Supabase
+    var rawTasks = results[2] || [];
+    var badTasks = rawTasks.filter(function(t){ return !t.titulo || t.titulo.trim()==='' || t.titulo==='(sin t\u00edtulo)'; });
+    var goodTasks = rawTasks.filter(function(t){ return t.titulo && t.titulo.trim()!=='' && t.titulo!=='(sin t\u00edtulo)'; });
+
+    // Eliminar las malas de Supabase en background
+    badTasks.forEach(function(t){
+      sbDelete('tasks', t.id);
+    });
+
+    S.tasks = goodTasks;
     bIdx();
+
     var ls = document.getElementById('ls');
     ls.style.opacity = '0';
     ls.style.transition = 'opacity .4s';
@@ -727,7 +744,8 @@ function initData() {
     }, 420);
     rAll();
     new ResizeObserver(rChart).observe(document.getElementById('wc').parentElement);
-    setTimeout(syncCalendar, 1500);
+    // Sincronizar Calendar \u2014 reimporta los que se limpiaron
+    setTimeout(syncCalendar, 1000);
   }).catch(function(e){
     var ls = document.getElementById('ls');
     ls.querySelector('.ls-text').textContent = 'Error: ' + e.message;
@@ -1310,25 +1328,77 @@ function rKbCards() {
     var cnt  = document.getElementById('kbCnt'+i);
     if (!cont) return;
     cnt.textContent = cols[st].length;
+    cont.innerHTML = '';
     if (!cols[st].length) {
-      cont.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;text-align:center">Vac\u00edo</div>';
-    } else {
-      cont.innerHTML = cols[st].map(function(k) {
-        return '<div class="kb-card" data-id="'+k.id+'">'
-          +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">'
-          +'<div onclick="oEditKanban(\''+k.id+'\')" style="flex:1;cursor:pointer">'
-          +'<div>'+k.titulo+'</div>'
-          +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
-          +'</div>'
-          +'<button onclick="delKanban(\''+k.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 2px;flex-shrink:0;line-height:1">\u2715</button>'
-          +'</div>'
-          +'<div style="display:flex;gap:4px;margin-top:8px">'
-          +(st!=='todo'?'<button onclick="moveKanban(\''+k.id+'\',\''+(st==='doing'?'todo':'doing')+'\')" style="flex:1;background:var(--bg2);border:none;border-radius:6px;padding:4px;cursor:pointer;font-size:11px;color:var(--text2)">\u2190</button>':'')
-          +(st!=='done'?'<button onclick="moveKanban(\''+k.id+'\',\''+(st==='todo'?'doing':'done')+'\')" style="flex:1;background:var(--accent);border:none;border-radius:6px;padding:4px;cursor:pointer;font-size:11px;color:white">\u2192</button>':'')
-          +'</div>'
-          +'</div>';
-      }).join('');
+      var empty = document.createElement('div');
+      empty.style.cssText = 'font-size:12px;color:var(--text3);padding:12px 0;text-align:center';
+      empty.textContent = 'Arrastr\u00e1 aqu\u00ed';
+      cont.appendChild(empty);
     }
+    cols[st].forEach(function(k) {
+      var card = document.createElement('div');
+      card.className = 'kb-card';
+      card.draggable = true;
+      card.dataset.id = k.id;
+      card.innerHTML =
+        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">'
+        +'<div class="kb-card-body" style="flex:1;cursor:pointer">'
+        +'<div style="font-size:13px;font-weight:500;line-height:1.3">'+k.titulo+'</div>'
+        +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
+        +'</div>'
+        +'<button class="kb-del-btn" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 2px;line-height:1;flex-shrink:0">\u2715</button>'
+        +'</div>';
+      card.querySelector('.kb-card-body').addEventListener('click',function(e){e.stopPropagation();oEditKanban(k.id);});
+      card.querySelector('.kb-del-btn').addEventListener('click',function(e){e.stopPropagation();delKanban(k.id);});
+      // Desktop drag
+      card.addEventListener('dragstart',function(e){kbDragging=k.id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',k.id);});
+      card.addEventListener('dragend',function(){card.classList.remove('dragging');kbDragging=null;document.querySelectorAll('.kb-cards').forEach(function(c){c.classList.remove('kb-over');});});
+      // Touch drag mobile
+      var touchClone=null;
+      card.addEventListener('touchstart',function(e){
+        var t=e.touches[0]; kbDragging=k.id;
+        touchClone=card.cloneNode(true);
+        touchClone.style.cssText='position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:'+card.offsetWidth+'px;transform:scale(1.04);box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:10px';
+        touchClone.style.left=(t.clientX-card.offsetWidth/2)+'px';
+        touchClone.style.top=(t.clientY-card.offsetHeight/2)+'px';
+        document.body.appendChild(touchClone);
+        card.style.opacity='0.3';
+      },{passive:true});
+      card.addEventListener('touchmove',function(e){
+        if(!touchClone)return; e.preventDefault();
+        var t=e.touches[0];
+        touchClone.style.left=(t.clientX-card.offsetWidth/2)+'px';
+        touchClone.style.top=(t.clientY-card.offsetHeight/2)+'px';
+        document.querySelectorAll('.kb-cards').forEach(function(c){c.classList.remove('kb-over');});
+        touchClone.style.display='none';
+        var el=document.elementFromPoint(t.clientX,t.clientY);
+        touchClone.style.display='';
+        var col=el&&el.closest('.kb-cards');
+        if(col)col.classList.add('kb-over');
+      },{passive:false});
+      card.addEventListener('touchend',function(e){
+        if(touchClone){touchClone.remove();touchClone=null;}
+        card.style.opacity='';
+        document.querySelectorAll('.kb-cards').forEach(function(c){c.classList.remove('kb-over');});
+        var t=e.changedTouches[0];
+        var el=document.elementFromPoint(t.clientX,t.clientY);
+        var col=el&&el.closest('.kb-cards');
+        if(col&&col.dataset.estado&&col.dataset.estado!==st)moveKanban(k.id,col.dataset.estado);
+        kbDragging=null;
+      });
+      cont.appendChild(card);
+    });
+    // Desktop drop zone
+    cont.addEventListener('dragover',function(e){e.preventDefault();cont.classList.add('kb-over');});
+    cont.addEventListener('dragleave',function(){cont.classList.remove('kb-over');});
+    cont.addEventListener('drop',function(e){
+      e.preventDefault();cont.classList.remove('kb-over');
+      var id=e.dataTransfer.getData('text/plain')||kbDragging;
+      if(!id)return;
+      var k2=S.kanban.find(function(x){return x.id===id;});
+      if(k2&&k2.estado!==st)moveKanban(id,st);
+      kbDragging=null;
+    });
   });
 }
 
