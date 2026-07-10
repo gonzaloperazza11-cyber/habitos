@@ -647,7 +647,9 @@ function calComplete(calId, titulo, completada) {
 
 function calDelete(calId) {
   if (!gToken||!calId) return Promise.resolve();
-  return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
+  // Algunos IDs de Google Calendar contienen caracteres especiales
+  var encodedId = encodeURIComponent(calId);
+  return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+encodedId, {
     method: 'DELETE', headers: { 'Authorization': 'Bearer '+gToken }
   }).catch(function(){});
 }
@@ -722,16 +724,16 @@ function initData() {
     S.holidays = results[3] || [];
     S.kanban   = results[4] || [];
 
-    // Filtrar y limpiar tareas sin t\u00EDtulo de Supabase
     var rawTasks = results[2] || [];
-    var badTasks = rawTasks.filter(function(t){ return !t.titulo || t.titulo.trim()==='' || t.titulo==='(sin t\u00edtulo)'; });
-    var goodTasks = rawTasks.filter(function(t){ return t.titulo && t.titulo.trim()!=='' && t.titulo!=='(sin t\u00edtulo)'; });
-
-    // Eliminar las malas de Supabase en background
-    badTasks.forEach(function(t){
-      sbDelete('tasks', t.id);
+    var badTasks = rawTasks.filter(function(t){
+      var tit=t.titulo, fec=t.fecha_limite;
+      return !tit||tit===null||String(tit).trim()===''||String(tit)==='undefined'||String(tit)==='(sin t\u00EDtulo)'||!fec||fec===null||String(fec).trim()===''||String(fec)==='undefined';
     });
-
+    var goodTasks = rawTasks.filter(function(t){
+      var tit=t.titulo, fec=t.fecha_limite;
+      return tit&&tit!==null&&String(tit).trim()!==''&&String(tit)!=='undefined'&&String(tit)!=='(sin t\u00EDtulo)'&&fec&&fec!==null&&String(fec).trim()!==''&&String(fec)!=='undefined';
+    });
+    badTasks.forEach(function(t){ sbDelete('tasks',t.id); });
     S.tasks = goodTasks;
     bIdx();
 
@@ -1030,18 +1032,43 @@ function oAddTask(pre){
   openBs('bsTask');
 }
 function sTask(){
-  var ti=document.getElementById('tTi').value.trim(),fe=document.getElementById('tFe').value;
+  var ti=document.getElementById('tTi').value.trim();
+  var fe=document.getElementById('tFe').value;
   if(!ti||!fe){toast('Complet\u00e1 t\u00edtulo y fecha','er');return;}
-  var de=document.getElementById('tDe').value.trim(),ca=document.getElementById('tCa').value;
+  var de=document.getElementById('tDe').value.trim();
+  var ca=document.getElementById('tCa').value;
   var id='t'+Date.now();
+
+  // Guardar en UI inmediatamente (optimista)
+  var newTask={id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''};
+  S.tasks.push(newTask);
+  bIdx(); rTasks(); rCalCell(fe);
   closeBs('bsTask');
+  toast('Actividad guardada','ok');
+
+  // Guardar en Supabase
+  sbPost('tasks',{id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''})
+    .then(function(r){
+      var saved=Array.isArray(r)?r[0]:r;
+      if(saved&&saved.id){
+        // Actualizar el objeto en S.tasks con lo que devuelve el servidor
+        var idx=S.tasks.findIndex(function(t){return t.id===id;});
+        if(idx>=0) S.tasks[idx]=Object.assign(S.tasks[idx],saved);
+      }
+    }).catch(function(){
+      // Revertir si Supabase falla
+      S.tasks=S.tasks.filter(function(t){return t.id!==id;});
+      bIdx();rTasks();rCalCell(fe);
+      toast('Error al guardar en base de datos','er');
+      return;
+    });
+
+  // Crear en Calendar en paralelo (no bloquea si falla)
   calCreate(ti,fe,de,ca).then(function(calEventId){
-    return sbPost('tasks',{id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:calEventId||''});
-  }).then(function(r){
-    var task=Array.isArray(r)?r[0]:r;
-    S.tasks.push(task||{id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''});
-    bIdx();rTasks();rCalCell(fe);toast('Actividad guardada','ok');
-  }).catch(function(){toast('Error al guardar','er');});
+    if(!calEventId)return;
+    newTask.cal_event_id=calEventId;
+    sbPatch('tasks',id,{cal_event_id:calEventId}).catch(function(){});
+  }).catch(function(){});
 }
 function togT(id,val){
   // Actualizar estado inmediatamente (optimista)
@@ -1069,10 +1096,14 @@ function delTaskBoard(id) {
   });
 }
 function oEditTask(id){
-  var t=S.tasks.find(function(t){return t.id===id;});if(!t)return;
-  document.getElementById('etId').value=t.id;document.getElementById('etTi').value=t.titulo;
-  document.getElementById('etFe').value=t.fecha_limite;document.getElementById('etDe').value=t.detalle||'';
-  document.getElementById('etCa').value=t.categoria||'Personal';openBs('bsEditTask');
+  var t=S.tasks.find(function(t){return t.id===id;});
+  if(!t)return;
+  document.getElementById('etId').value=t.id||'';
+  document.getElementById('etTi').value=t.titulo||'';
+  document.getElementById('etFe').value=t.fecha_limite||'';
+  document.getElementById('etDe').value=t.detalle||'';
+  document.getElementById('etCa').value=t.categoria||'Personal';
+  openBs('bsEditTask');
 }
 function sEditTask(){
   var id=document.getElementById('etId').value,ti=document.getElementById('etTi').value.trim(),fe=document.getElementById('etFe').value;
