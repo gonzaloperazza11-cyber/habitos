@@ -974,15 +974,19 @@ function rTasks(){
   var cont=document.getElementById('tasksList');
   var tasks=S.tasks.slice().sort(function(a,b){
     if(a.completada&&!b.completada)return 1;if(!a.completada&&b.completada)return -1;
-    return new Date(a.fecha_limite)-new Date(b.fecha_limite);
+    return new Date(a.fecha_limite||'9999')-new Date(b.fecha_limite||'9999');
   });
   if(!tasks.length){cont.innerHTML='<div class="tasks-empty"><div style="font-size:32px;opacity:.3">&#x1F4CB;</div><div style="font-size:14px;color:var(--text2);font-weight:500;margin-top:4px">Sin actividades</div></div>';return;}
   cont.innerHTML=tasks.map(function(t){
-    var dias=dDiff(t.fecha_limite),st=tSt(dias,t.completada);
+    var titulo=t.titulo||'(sin t\u00edtulo)';
+    var fecha=t.fecha_limite||'';
+    var cat=t.categoria||'Personal';
+    var dias=fecha?dDiff(fecha):999;
+    var st=tSt(dias,t.completada);
     return '<div class="task-card'+(t.completada?' t-done':'')+'" onclick="oEditTask(\''+t.id+'\')">'
       +'<div class="tc-check'+(t.completada?' on':'')+'" onclick="event.stopPropagation();togT(\''+t.id+'\','+!t.completada+')"><svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg></div>'
-      +'<div class="tc-body"><div class="tc-title">'+t.titulo+'</div>'
-      +'<div class="tc-meta"><span class="tc-badge '+st.c+'">'+st.l+'</span><span class="tc-date">'+dDsp(t.fecha_limite)+'</span><span class="tc-cat '+t.categoria+'">'+t.categoria+'</span>'
+      +'<div class="tc-body"><div class="tc-title">'+titulo+'</div>'
+      +'<div class="tc-meta"><span class="tc-badge '+st.c+'">'+st.l+'</span>'+(fecha?'<span class="tc-date">'+dDsp(fecha)+'</span>':'')+'<span class="tc-cat '+cat+'">'+cat+'</span>'
       +(t.detalle?'<span style="font-size:12px;color:var(--text3)">'+t.detalle+'</span>':'')+'</div></div>'
       +'<div style="color:var(--text3);font-size:18px;padding:0 2px;flex-shrink:0">&#x203A;</div></div>';
   }).join('');
@@ -1009,11 +1013,17 @@ function sTask(){
   }).catch(function(){toast('Error al guardar','er');});
 }
 function togT(id,val){
+  // Actualizar estado inmediatamente (optimista)
   var t=S.tasks.find(function(t){return t.id===id;});
+  if(t){ t.completada=val; bIdx(); rTasks(); rBoard(); }
+  // Persistir en background
   sbPatch('tasks',id,{completada:val}).then(function(){
-    if(t){t.completada=val;bIdx();}
-    if(t&&t.cal_event_id) calComplete(t.cal_event_id,t.titulo,val);
-    rTasks(); rBoard(); toast(val?'Completada':'Reabierta','ok');
+    if(t&&t.cal_event_id) calComplete(t.cal_event_id,t.titulo||'',val);
+    toast(val?'Completada':'Reabierta','ok');
+  }).catch(function(){
+    // Revertir si falla
+    if(t){ t.completada=!val; bIdx(); rTasks(); rBoard(); }
+    toast('Error al guardar','er');
   });
 }
 
@@ -1181,44 +1191,51 @@ function closeBs(id){document.getElementById(id).classList.remove('open');}
 // \u2500\u2500 CALENDAR SYNC \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function syncCalendar() {
   if (!gToken) return;
-  var now = new Date();
+  var now   = new Date();
   var start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   var end   = new Date(now.getFullYear(), now.getMonth()+2, 0, 23, 59, 59).toISOString();
   fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events'
     + '?timeMin=' + encodeURIComponent(start)
     + '&timeMax=' + encodeURIComponent(end)
-    + '&singleEvents=true&orderBy=startTime&maxResults=100', {
+    + '&singleEvents=true&orderBy=startTime&maxResults=200', {
     headers: { 'Authorization': 'Bearer ' + gToken }
   }).then(function(r){ return r.json(); }).then(function(data) {
     var items = data.items || [];
     var existingCalIds = {};
     S.tasks.forEach(function(t){ if(t.cal_event_id) existingCalIds[t.cal_event_id]=true; });
+
     var toImport = items.filter(function(ev) {
-      if (!ev.start || !ev.start.date) return false; // solo all-day
-      if (existingCalIds[ev.id]) return false; // ya importado
+      if (!ev.summary) return false;
+      if (existingCalIds[ev.id]) return false;
       var desc = ev.description || '';
-      if (desc.indexOf('[HabitTracker]') !== -1) return false; // propio
+      if (desc.indexOf('[HabitTracker]') !== -1) return false;
+      // Aceptar all-day y eventos con hora \u2014 extraer fecha
+      var fecha = (ev.start && (ev.start.date || (ev.start.dateTime && ev.start.dateTime.slice(0,10))));
+      if (!fecha) return false;
+      ev._fecha = fecha; // guardar para uso posterior
       return true;
     });
-    if (!toImport.length) { toast('Calendario al d\u00eda','ok'); return; }
+
+    if (!toImport.length) { return; } // silencioso si no hay nada nuevo
+
     var promises = toImport.map(function(ev) {
-      var id = 't' + Date.now() + Math.random().toString(36).slice(2,6);
+      var id     = 't' + Date.now() + Math.random().toString(36).slice(2,6);
       var titulo = ev.summary || 'Evento';
-      var fecha  = ev.start.date;
+      var fecha  = ev._fecha;
+      var detalle= (ev.description||'').slice(0,100);
       return sbPost('tasks', {
-        id: id, titulo: titulo, fecha_limite: fecha,
-        detalle: (ev.description||'').replace('[HabitTracker]','').trim().slice(0,100),
-        categoria: 'Personal', completada: false, cal_event_id: ev.id
+        id:id, titulo:titulo, fecha_limite:fecha,
+        detalle:detalle, categoria:'Personal', completada:false, cal_event_id:ev.id
       }).then(function(r) {
         var task = Array.isArray(r)?r[0]:r;
-        S.tasks.push(task || {id:id,titulo:titulo,fecha_limite:fecha,detalle:'',categoria:'Personal',completada:false,cal_event_id:ev.id});
+        S.tasks.push(task||{id:id,titulo:titulo,fecha_limite:fecha,detalle:detalle,categoria:'Personal',completada:false,cal_event_id:ev.id});
       });
     });
     Promise.all(promises).then(function() {
       bIdx(); rTasks(); rBoard();
-      toast(toImport.length + ' evento' + (toImport.length>1?'s':'') + ' importado' + (toImport.length>1?'s':''), 'ok');
+      toast(toImport.length+' evento'+(toImport.length>1?'s':'')+' importado'+(toImport.length>1?'s':''),'ok');
     });
-  }).catch(function(){ toast('Error al sincronizar','er'); });
+  }).catch(function(e){ console.log('Sync error:',e); });
 }
 
 // \u2500\u2500 KANBAN STATE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1272,16 +1289,41 @@ function rKbCards() {
     var cnt  = document.getElementById('kbCnt'+i);
     if (!cont) return;
     cnt.textContent = cols[st].length;
-    cont.innerHTML = cols[st].map(function(k) {
-      return '<div class="kb-card" draggable="true" data-id="'+k.id+'"'
-        +' ondragstart="kbDragStart(event,\''+k.id+'\')"'
-        +' ondragend="kbDragEnd(event)"'
-        +' onclick="oEditKanban(\''+k.id+'\')">'
-        +'<div>'+k.titulo+'</div>'
-        +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
-        +'</div>';
-    }).join('') || '<div style="font-size:12px;color:var(--text3);padding:4px 0;text-align:center">Arrastr\u00e1 aqu\u00ed</div>';
+    if (!cols[st].length) {
+      cont.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0;text-align:center">Vac\u00edo</div>';
+    } else {
+      cont.innerHTML = cols[st].map(function(k) {
+        return '<div class="kb-card" data-id="'+k.id+'">'
+          +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">'
+          +'<div onclick="oEditKanban(\''+k.id+'\')" style="flex:1;cursor:pointer">'
+          +'<div>'+k.titulo+'</div>'
+          +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
+          +'</div>'
+          +'<button onclick="delKanban(\''+k.id+'\')" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 2px;flex-shrink:0;line-height:1">\u2715</button>'
+          +'</div>'
+          +'<div style="display:flex;gap:4px;margin-top:8px">'
+          +(st!=='todo'?'<button onclick="moveKanban(\''+k.id+'\',\''+(st==='doing'?'todo':'doing')+'\')" style="flex:1;background:var(--bg2);border:none;border-radius:6px;padding:4px;cursor:pointer;font-size:11px;color:var(--text2)">\u2190</button>':'')
+          +(st!=='done'?'<button onclick="moveKanban(\''+k.id+'\',\''+(st==='todo'?'doing':'done')+'\')" style="flex:1;background:var(--accent);border:none;border-radius:6px;padding:4px;cursor:pointer;font-size:11px;color:white">\u2192</button>':'')
+          +'</div>'
+          +'</div>';
+      }).join('');
+    }
   });
+}
+
+function moveKanban(id, newEstado) {
+  var k = S.kanban.find(function(k){ return k.id===id; });
+  if (!k) return;
+  k.estado = newEstado;
+  rKbCards();
+  sbPatch('kanban', id, {estado: newEstado});
+}
+
+function delKanban(id) {
+  if (!confirm('Eliminar esta tarea?')) return;
+  S.kanban = S.kanban.filter(function(k){ return k.id!==id; });
+  rKbCards();
+  sbDelete('kanban', id);
 }
 
 // \u2500\u2500 KANBAN CRUD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -1290,6 +1332,7 @@ function oAddKanban() {
   document.getElementById('kbTi').value = '';
   document.getElementById('kbDe').value = '';
   document.getElementById('kbSt').value = 'todo';
+  document.querySelector('#bsKanban .bs-title').textContent = 'Nueva tarea';
   document.getElementById('kbSubmit').textContent = 'Agregar tarea';
   openBs('bsKanban');
 }
@@ -1301,6 +1344,7 @@ function oEditKanban(id) {
   document.getElementById('kbTi').value = k.titulo;
   document.getElementById('kbDe').value = k.descripcion || '';
   document.getElementById('kbSt').value = k.estado || 'todo';
+  document.querySelector('#bsKanban .bs-title').textContent = 'Editar tarea';
   document.getElementById('kbSubmit').textContent = 'Guardar cambios';
   openBs('bsKanban');
 }
@@ -1315,16 +1359,15 @@ function sKanban() {
   if (id) {
     var k = S.kanban.find(function(k){ return k.id===id; });
     if (k) { k.titulo=ti; k.descripcion=de; k.estado=st; }
+    rBoard();
     sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st})
-      .then(function(){ rBoard(); toast('Tarea actualizada','ok'); });
+      .then(function(){ toast('Tarea actualizada','ok'); });
   } else {
     var newId = 'k'+Date.now();
-    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length})
-      .then(function(r) {
-        var kb = Array.isArray(r)?r[0]:r;
-        S.kanban.push(kb || {id:newId,titulo:ti,descripcion:de,estado:st});
-        rBoard(); toast('Tarea agregada','ok');
-      });
+    S.kanban.push({id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length});
+    rBoard();
+    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length-1})
+      .then(function(){ toast('Tarea agregada','ok'); });
   }
 }
 
