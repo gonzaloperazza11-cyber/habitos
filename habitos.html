@@ -485,6 +485,10 @@ input,select,textarea{font-size:16px !important}
         <select class="bs-select" id="etCa"><option>Personal</option><option>Facultad</option><option>Trabajo</option><option>Emprendimiento</option></select>
       </div>
       <button class="bs-submit" onclick="sEditTask()">Guardar cambios</button>
+      <button id="calSyncBtn" onclick="syncTaskToCalendar(document.getElementById('etId').value)" style="width:100%;padding:18px;background:none;border:2px solid var(--border);border-radius:18px;color:var(--text2);font-family:var(--f);font-size:16px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Agregar a Google Calendar
+      </button>
       <button class="btn-danger" onclick="delTFromEdit()">Eliminar actividad</button>
     </div>
   </div>
@@ -619,6 +623,7 @@ function signIn() {
     callback: function(resp) {
       if (resp.error) { showLoginError(resp.error); return; }
       gToken = resp.access_token;
+      gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
       fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { 'Authorization': 'Bearer ' + gToken }
       }).then(function(r){ return r.json(); }).then(function(u) {
@@ -649,85 +654,122 @@ function showLoginError(msg) {
   el.style.display = 'block';
 }
 
-// Renovar token si expir\u00F3 (los tokens de Google duran 1 hora)
-function ensureToken() {
-  if (gToken) return Promise.resolve(gToken);
-  return new Promise(function(resolve, reject) {
-    var client = google.accounts.oauth2.initTokenClient({
-      client_id: GCLIENT_ID,
-      scope: GSCOPES,
-      callback: function(resp) {
-        if (resp.error) { reject(resp.error); return; }
-        gToken = resp.access_token;
-        resolve(gToken);
-      },
-      prompt: '' // sin popup si ya tiene sesi\u00F3n
-    });
-    client.requestAccessToken();
+// \u2500\u2500 GOOGLE CALENDAR \u2014 SISTEMA ROBUSTO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Estrategia: pedir token fresco en cada operaci\u00F3n de Calendar.
+// Los tokens duran 1 hora pero no los reutilizamos entre operaciones.
+// Si el usuario tiene sesi\u00F3n activa con Google, el refresh es silencioso (<200ms).
+// Si fall\u00F3, la tarea ya est\u00E1 guardada en Supabase \u2014 Calendar es best-effort.
+
+var gTokenExpiry = 0; // timestamp de expiraci\u00F3n
+
+function getCalToken() {
+  // Si el token actual a\u00FAn es v\u00E1lido (con 2 min de margen), usarlo
+  if (gToken && Date.now() < gTokenExpiry - 120000) {
+    return Promise.resolve(gToken);
+  }
+  // Pedir token nuevo silenciosamente
+  return new Promise(function(resolve) {
+    try {
+      var client = google.accounts.oauth2.initTokenClient({
+        client_id: GCLIENT_ID,
+        scope: GSCOPES,
+        prompt: '',        // sin popup si tiene sesi\u00F3n activa
+        callback: function(resp) {
+          if (resp.error || !resp.access_token) {
+            resolve(null); // falla silenciosamente
+            return;
+          }
+          gToken = resp.access_token;
+          gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+          resolve(gToken);
+        }
+      });
+      client.requestAccessToken();
+    } catch(e) {
+      resolve(null); // si google.accounts no est\u00E1 disponible
+    }
   });
+}
+
+function calApiCall(method, path, body) {
+  return getCalToken().then(function(token) {
+    if (!token) return null;
+    var opts = {
+      method: method,
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/'+path, opts)
+      .then(function(r) {
+        if (r.status === 204) return true; // DELETE exitoso
+        if (!r.ok) {
+          if (r.status === 401) { gToken = null; gTokenExpiry = 0; } // token inv\u00E1lido
+          return null;
+        }
+        return r.json().then(function(d) { return d.error ? null : d; });
+      });
+  }).catch(function() { return null; });
 }
 
 function calCreate(titulo, fecha, detalle, categoria) {
-  if (!gToken && !google) return Promise.resolve(null);
-  return ensureToken().then(function(token) {
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        summary: '\ud83d\udccc '+titulo,
-        description: (detalle||'')+'\n\nCategor\u00eda: '+categoria+'\n[HabitTracker]',
-        start:{ date: fecha }, end:{ date: fecha },
-        reminders:{ useDefault:false, overrides:[{method:'popup',minutes:1030}] }
-      })
-    });
-  }).then(function(r){ return r.json(); }).then(function(e){
-    if (e.error) {
-      console.error('Calendar error:', e.error.message);
-      // Si el token expir\u00F3, limpiar para forzar renovaci\u00F3n
-      if (e.error.code === 401) gToken = null;
-      return null;
-    }
-    return e.id || null;
-  }).catch(function(err){
-    console.error('calCreate error:', err);
-    return null;
-  });
+  return calApiCall('POST', 'events', {
+    summary: '\ud83d\udccc ' + titulo,
+    description: (detalle||'') + '\n\nCategor\u00eda: ' + categoria + '\n[HabitTracker]',
+    start: { date: fecha },
+    end:   { date: fecha },
+    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1030 }] }
+  }).then(function(e) { return e && e.id ? e.id : null; });
 }
 
 function calUpdate(calId, titulo, fecha, detalle, categoria) {
-  if (!calId) return Promise.resolve();
-  return ensureToken().then(function(token) {
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        summary: '\ud83d\udccc '+titulo,
-        description: (detalle||'')+'\n\nCategor\u00eda: '+categoria+'\n[HabitTracker]',
-        start:{ date: fecha }, end:{ date: fecha },
-        reminders:{ useDefault:false, overrides:[{method:'popup',minutes:1030}] }
-      })
-    });
-  }).catch(function(){});
+  if (!calId) return Promise.resolve(null);
+  return calApiCall('PUT', 'events/' + encodeURIComponent(calId), {
+    summary: '\ud83d\udccc ' + titulo,
+    description: (detalle||'') + '\n\nCategor\u00eda: ' + categoria + '\n[HabitTracker]',
+    start: { date: fecha },
+    end:   { date: fecha },
+    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1030 }] }
+  });
 }
 
 function calComplete(calId, titulo, completada) {
-  if (!calId) return Promise.resolve();
-  return ensureToken().then(function(token) {
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
-      method: 'PATCH',
-      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ summary: (completada?'\u2705 ':'\ud83d\udccc ')+titulo })
-    });
-  }).catch(function(){});
+  if (!calId) return Promise.resolve(null);
+  return calApiCall('PATCH', 'events/' + encodeURIComponent(calId), {
+    summary: (completada ? '\u2705 ' : '\ud83d\udccc ') + titulo
+  });
 }
 
 function calDelete(calId) {
-  if (!calId) return Promise.resolve();
-  return ensureToken().then(function(token) {
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+encodeURIComponent(calId), {
-      method: 'DELETE', headers: { 'Authorization': 'Bearer '+token }
+  if (!calId) return Promise.resolve(null);
+  return calApiCall('DELETE', 'events/' + encodeURIComponent(calId), null);
+}
+
+// Agregar a Calendar + guardar calEventId en Supabase
+function addToCalendar(taskId, ti, fe, de, ca) {
+  calCreate(ti, fe, de, ca).then(function(calEventId) {
+    if (!calEventId) return;
+    var t = S.tasks.find(function(t) { return t.id === taskId; });
+    if (t) t.cal_event_id = calEventId;
+    sbPatch('tasks', taskId, { cal_event_id: calEventId }).catch(function(){});
+  });
+}
+
+// Forzar sincronizaci\u00F3n manual desde el editor de tarea
+function syncTaskToCalendar(id) {
+  var t = S.tasks.find(function(t) { return t.id === id; });
+  if (!t) return;
+  if (t.cal_event_id) { toast('Ya tiene evento en Calendar', 'ok'); return; }
+  toast('Agregando a Calendar...', 'ok');
+  calCreate(t.titulo, t.fecha_limite, t.detalle||'', t.categoria||'Personal')
+    .then(function(calEventId) {
+      if (calEventId) {
+        t.cal_event_id = calEventId;
+        sbPatch('tasks', id, { cal_event_id: calEventId }).catch(function(){});
+        toast('Agregado a Google Calendar \u2713', 'ok');
+      } else {
+        toast('No se pudo conectar con Calendar', 'er');
+      }
     });
-  }).catch(function(){});
 }
 
 function startApp() {
@@ -1220,13 +1262,12 @@ function sTask(){
   var ca=document.getElementById('tCa').value;
   var id='t'+Date.now();
 
-  // Guardar en UI inmediatamente (optimista)
   var newTask={id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''};
   S.tasks.push(newTask);
   bIdx(); rTasks(); rCalCell(fe);
   closeBs('bsTask');
 
-  // Guardar en Supabase primero
+  // Solo Supabase \u2014 Calendar es opcional
   sbPost('tasks',{id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''})
     .then(function(r){
       var saved=Array.isArray(r)?r[0]:r;
@@ -1234,21 +1275,45 @@ function sTask(){
         var idx=S.tasks.findIndex(function(t){return t.id===id;});
         if(idx>=0) S.tasks[idx]=Object.assign(S.tasks[idx],saved);
       }
-      // Crear en Calendar despu\u00E9s de confirmar Supabase
-      return calCreate(ti,fe,de,ca);
-    }).then(function(calEventId){
-      if(calEventId){
-        newTask.cal_event_id=calEventId;
-        sbPatch('tasks',id,{cal_event_id:calEventId}).catch(function(){});
-        toast('Guardada y en Google Calendar \u2713','ok');
-      } else {
-        toast('Guardada (sin acceso a Calendar)','ok');
-      }
+      toast('Actividad guardada','ok');
+      // Intentar Calendar en background \u2014 si falla no importa
+      addToCalendar(id, ti, fe, de, ca);
     }).catch(function(){
       S.tasks=S.tasks.filter(function(t){return t.id!==id;});
-      bIdx();rTasks();rCalCell(fe);
+      bIdx(); rTasks(); rCalCell(fe);
       toast('Error al guardar','er');
     });
+}
+
+// Agregar a Google Calendar \u2014 puede fallar sin problema
+function addToCalendar(taskId, ti, fe, de, ca) {
+  if (!gToken) return; // Sin token, no hacer nada
+  calCreate(ti, fe, de, ca).then(function(calEventId){
+    if (!calEventId) return;
+    var t = S.tasks.find(function(t){ return t.id===taskId; });
+    if (t) t.cal_event_id = calEventId;
+    sbPatch('tasks', taskId, {cal_event_id: calEventId}).catch(function(){});
+  }).catch(function(){});
+}
+
+// Agregar manualmente a Calendar desde el editor
+function syncTaskToCalendar(id) {
+  var t = S.tasks.find(function(t){ return t.id===id; });
+  if (!t) return;
+  if (t.cal_event_id) { toast('Ya tiene evento en Calendar','ok'); return; }
+  ensureToken().then(function(){
+    return calCreate(t.titulo, t.fecha_limite, t.detalle||'', t.categoria||'Personal');
+  }).then(function(calEventId){
+    if (calEventId) {
+      t.cal_event_id = calEventId;
+      sbPatch('tasks', id, {cal_event_id: calEventId}).catch(function(){});
+      toast('Agregado a Google Calendar \u2713','ok');
+    } else {
+      toast('No se pudo agregar a Calendar','er');
+    }
+  }).catch(function(){
+    toast('Error con Google Calendar','er');
+  });
 }
 function togT(id,val){
   // Actualizar estado inmediatamente (optimista)
