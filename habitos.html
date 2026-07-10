@@ -72,10 +72,7 @@ input,select,textarea{font-size:16px !important}
 .habit-row.done::before{transform:scaleX(1)}
 .habit-row.dragging{opacity:.35;transform:scale(.98)}
 .habit-row.drag-over{border-color:var(--accent3);background:var(--accentbg)}
-.habit-drag-handle{display:flex;flex-direction:column;gap:3px;padding:4px 2px;cursor:grab;flex-shrink:0;position:relative;z-index:2;opacity:.3;transition:opacity .15s}
-.habit-drag-handle:active{cursor:grabbing}
-.habit-row:hover .habit-drag-handle{opacity:.6}
-.habit-drag-handle span{display:block;width:16px;height:2px;background:var(--text3);border-radius:1px}
+.habit-drag-handle{display:none}
 .habit-color-bar{width:4px;height:36px;border-radius:2px;flex-shrink:0;position:relative;z-index:1}
 .habit-info{flex:1;min-width:0;position:relative;z-index:1}
 .habit-name{font-size:19px;font-weight:500;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -176,7 +173,8 @@ input,select,textarea{font-size:16px !important}
 .bs-body::-webkit-scrollbar{display:none}
 .bs-field{display:flex;flex-direction:column;gap:10px}
 .bs-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
-.bs-input{width:100%;padding:20px;background:var(--bg2);border:2px solid transparent;border-radius:16px;font-family:var(--f);font-size:16px !important;color:var(--text);outline:none;min-height:60px;transition:border-color .15s,background .15s}
+.bs-input{width:100%;padding:20px;background:var(--bg2);border:2px solid transparent;border-radius:16px;font-family:var(--f);font-size:16px !important;color:var(--text);outline:none;min-height:60px;height:60px;transition:border-color .15s,background .15s}
+.bs-input[type="date"]{height:60px;line-height:1;display:flex;align-items:center}
 .bs-input:focus{background:var(--surface);border-color:var(--accent)}
 .bs-input::placeholder{color:var(--text3)}
 .bs-row{display:flex;gap:14px}
@@ -1029,16 +1027,30 @@ function initHabitDnD(cont,ds){
     row.addEventListener('dragleave',function(){row.classList.remove('drag-over');});
     row.addEventListener('drop',function(e){e.preventDefault();row.classList.remove('drag-over');});
 
-    // Touch drag mobile
-    var handle=row.querySelector('.habit-drag-handle');
-    handle.addEventListener('touchstart',function(e){
-      dragging=row; row.classList.add('dragging');
-      touchClone=row.cloneNode(true);
-      touchClone.style.cssText='position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:'+row.offsetWidth+'px;left:'+row.getBoundingClientRect().left+'px;top:'+e.touches[0].clientY+'px;transform:scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,.15);border-radius:'+getComputedStyle(row).borderRadius;
-      document.body.appendChild(touchClone);
+    // Touch drag mobile \u2014 desde la fila completa con long press
+    var longPressTimer = null;
+    row.addEventListener('touchstart',function(e){
+      longPressTimer = setTimeout(function(){
+        dragging=row; row.classList.add('dragging');
+        touchClone=row.cloneNode(true);
+        touchClone.style.cssText='position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:'+row.offsetWidth+'px;left:'+row.getBoundingClientRect().left+'px;top:'+e.touches[0].clientY+'px;transform:scale(1.02);box-shadow:0 8px 24px rgba(0,0,0,.15);border-radius:'+getComputedStyle(row).borderRadius;
+        document.body.appendChild(touchClone);
+      }, 400);
     },{passive:true});
+    row.addEventListener('touchend',function(){
+      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
+      if(touchClone){touchClone.remove();touchClone=null;}
+      row.classList.remove('dragging');
+      cont.querySelectorAll('.habit-row').forEach(function(r){r.classList.remove('drag-over');});
+      if(dragging){ dragging=null; saveHabitOrder(cont); }
+    });
+    row.addEventListener('touchcancel',function(){
+      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
+      if(touchClone){touchClone.remove();touchClone=null;}
+      row.classList.remove('dragging'); dragging=null;
+    });
 
-    handle.addEventListener('touchmove',function(e){
+    row.addEventListener('touchmove',function(e){
       if(!touchClone)return; e.preventDefault();
       var t=e.touches[0];
       touchClone.style.top=(t.clientY-row.offsetHeight/2)+'px';
@@ -1055,13 +1067,7 @@ function initHabitDnD(cont,ds){
       }
     },{passive:false});
 
-    handle.addEventListener('touchend',function(){
-      if(touchClone){touchClone.remove();touchClone=null;}
-      row.classList.remove('dragging');
-      cont.querySelectorAll('.habit-row').forEach(function(r){r.classList.remove('drag-over');});
-      dragging=null;
-      saveHabitOrder(cont);
-    });
+    // Drag desktop listeners ya est\u00E1n arriba
   });
 }
 
