@@ -649,49 +649,84 @@ function showLoginError(msg) {
   el.style.display = 'block';
 }
 
+// Renovar token si expir\u00F3 (los tokens de Google duran 1 hora)
+function ensureToken() {
+  if (gToken) return Promise.resolve(gToken);
+  return new Promise(function(resolve, reject) {
+    var client = google.accounts.oauth2.initTokenClient({
+      client_id: GCLIENT_ID,
+      scope: GSCOPES,
+      callback: function(resp) {
+        if (resp.error) { reject(resp.error); return; }
+        gToken = resp.access_token;
+        resolve(gToken);
+      },
+      prompt: '' // sin popup si ya tiene sesi\u00F3n
+    });
+    client.requestAccessToken();
+  });
+}
+
 function calCreate(titulo, fecha, detalle, categoria) {
-  if (!gToken) return Promise.resolve(null);
-  return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer '+gToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: '\ud83d\udccc '+titulo,
-      description: (detalle||'')+'\n\nCategor\u00eda: '+categoria+'\n[HabitTracker]',
-      start:{ date: fecha }, end:{ date: fecha },
-      reminders:{ useDefault:false, overrides:[{method:'popup',minutes:1030}] }
-    })
-  }).then(function(r){return r.json();}).then(function(e){return e.id||null;}).catch(function(){return null;});
+  if (!gToken && !google) return Promise.resolve(null);
+  return ensureToken().then(function(token) {
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary: '\ud83d\udccc '+titulo,
+        description: (detalle||'')+'\n\nCategor\u00eda: '+categoria+'\n[HabitTracker]',
+        start:{ date: fecha }, end:{ date: fecha },
+        reminders:{ useDefault:false, overrides:[{method:'popup',minutes:1030}] }
+      })
+    });
+  }).then(function(r){ return r.json(); }).then(function(e){
+    if (e.error) {
+      console.error('Calendar error:', e.error.message);
+      // Si el token expir\u00F3, limpiar para forzar renovaci\u00F3n
+      if (e.error.code === 401) gToken = null;
+      return null;
+    }
+    return e.id || null;
+  }).catch(function(err){
+    console.error('calCreate error:', err);
+    return null;
+  });
 }
 
 function calUpdate(calId, titulo, fecha, detalle, categoria) {
-  if (!gToken||!calId) return Promise.resolve();
-  return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
-    method: 'PUT',
-    headers: { 'Authorization': 'Bearer '+gToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      summary: '\ud83d\udccc '+titulo,
-      description: (detalle||'')+'\n\nCategor\u00eda: '+categoria+'\n[HabitTracker]',
-      start:{ date: fecha }, end:{ date: fecha },
-      reminders:{ useDefault:false, overrides:[{method:'popup',minutes:1030}] }
-    })
+  if (!calId) return Promise.resolve();
+  return ensureToken().then(function(token) {
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        summary: '\ud83d\udccc '+titulo,
+        description: (detalle||'')+'\n\nCategor\u00eda: '+categoria+'\n[HabitTracker]',
+        start:{ date: fecha }, end:{ date: fecha },
+        reminders:{ useDefault:false, overrides:[{method:'popup',minutes:1030}] }
+      })
+    });
   }).catch(function(){});
 }
 
 function calComplete(calId, titulo, completada) {
-  if (!gToken||!calId) return Promise.resolve();
-  return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
-    method: 'PATCH',
-    headers: { 'Authorization': 'Bearer '+gToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ summary: (completada?'\u2705 ':'\ud83d\udccc ')+titulo })
+  if (!calId) return Promise.resolve();
+  return ensureToken().then(function(token) {
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+calId, {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summary: (completada?'\u2705 ':'\ud83d\udccc ')+titulo })
+    });
   }).catch(function(){});
 }
 
 function calDelete(calId) {
-  if (!gToken||!calId) return Promise.resolve();
-  // Algunos IDs de Google Calendar contienen caracteres especiales
-  var encodedId = encodeURIComponent(calId);
-  return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+encodedId, {
-    method: 'DELETE', headers: { 'Authorization': 'Bearer '+gToken }
+  if (!calId) return Promise.resolve();
+  return ensureToken().then(function(token) {
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/'+CAL_ID+'/events/'+encodeURIComponent(calId), {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer '+token }
+    });
   }).catch(function(){});
 }
 
@@ -873,9 +908,12 @@ function rHoy() {
     var prevDone=cont.dataset.allDone==='1',allDoneNow=true;
     active.forEach(function(h,i){
       var el=existing[i],done=!!IDX.byHabitDate[ds+'|'+String(h.id)];
-      var wl=wkMap[String(h.id)]||0,maxed=wl>=h.frecuencia_max&&!done;
+      var wl=wkMap[String(h.id)]||0;
+      // maxed: lleg\u00F3 al l\u00EDmite semanal (ya sea que hoy est\u00E9 marcado o no)
+      var maxed=!done&&wl>=h.frecuencia_max;
       if(!done)allDoneNow=false;
-      el.classList.toggle('done',done);el.classList.toggle('maxed',maxed);
+      el.classList.toggle('done',done);
+      el.classList.toggle('maxed',maxed);
       el.querySelector('.habit-freq-pill').textContent=wl+'/'+h.frecuencia_max+'\u00d7';
       el.dataset.hid=String(h.id);
     });
@@ -888,7 +926,8 @@ function rHoy() {
   var frag=document.createDocumentFragment(),allDone=true;
   active.forEach(function(h){
     var done=!!IDX.byHabitDate[ds+'|'+String(h.id)];
-    var wl=wkMap[String(h.id)]||0,maxed=wl>=h.frecuencia_max&&!done;
+    var wl=wkMap[String(h.id)]||0;
+    var maxed=!done&&wl>=h.frecuencia_max;
     if(!done)allDone=false;
     var el=document.createElement('div');
     el.className='habit-row'+(done?' done':'')+(maxed?' maxed':'');
@@ -908,8 +947,10 @@ function rHoy() {
   // Click para marcar (ignorar si viene del handle)
   cont.onclick=function(e){
     if(e.target.closest('.habit-drag-handle'))return;
-    var row=e.target.closest('.habit-row:not(.maxed)');
+    var row=e.target.closest('.habit-row:not(.maxed):not(.hol)');
     if(!row||isHol)return;
+    // No permitir marcar d\u00EDas futuros
+    if(ds>TODAY)return;
     togH(ds,row.dataset.hid,row);
   };
 
@@ -1004,6 +1045,8 @@ function saveHabitOrder(cont){
 }
 
 function togH(fecha,hid,el){
+  // No permitir marcar d\u00EDas futuros
+  if(fecha>TODAY){ toast('No pod\u00e9s marcar d\u00edas futuros','er'); return; }
   el.style.pointerEvents='none';
   var adding=!el.classList.contains('done');
   if(adding){
@@ -1182,31 +1225,30 @@ function sTask(){
   S.tasks.push(newTask);
   bIdx(); rTasks(); rCalCell(fe);
   closeBs('bsTask');
-  toast('Actividad guardada','ok');
 
-  // Guardar en Supabase
+  // Guardar en Supabase primero
   sbPost('tasks',{id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''})
     .then(function(r){
       var saved=Array.isArray(r)?r[0]:r;
       if(saved&&saved.id){
-        // Actualizar el objeto en S.tasks con lo que devuelve el servidor
         var idx=S.tasks.findIndex(function(t){return t.id===id;});
         if(idx>=0) S.tasks[idx]=Object.assign(S.tasks[idx],saved);
       }
+      // Crear en Calendar despu\u00E9s de confirmar Supabase
+      return calCreate(ti,fe,de,ca);
+    }).then(function(calEventId){
+      if(calEventId){
+        newTask.cal_event_id=calEventId;
+        sbPatch('tasks',id,{cal_event_id:calEventId}).catch(function(){});
+        toast('Guardada y en Google Calendar \u2713','ok');
+      } else {
+        toast('Guardada (sin acceso a Calendar)','ok');
+      }
     }).catch(function(){
-      // Revertir si Supabase falla
       S.tasks=S.tasks.filter(function(t){return t.id!==id;});
       bIdx();rTasks();rCalCell(fe);
-      toast('Error al guardar en base de datos','er');
-      return;
+      toast('Error al guardar','er');
     });
-
-  // Crear en Calendar en paralelo (no bloquea si falla)
-  calCreate(ti,fe,de,ca).then(function(calEventId){
-    if(!calEventId)return;
-    newTask.cal_event_id=calEventId;
-    sbPatch('tasks',id,{cal_event_id:calEventId}).catch(function(){});
-  }).catch(function(){});
 }
 function togT(id,val){
   // Actualizar estado inmediatamente (optimista)
