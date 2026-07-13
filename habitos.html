@@ -831,7 +831,23 @@ function initData() {
     sbGet('holidays'),
     sbGet('kanban','order=orden')
   ]).then(function(results) {
-    S.habits   = results[0] || [];
+    S.habits   = (results[0] || []).sort(function(a,b){
+      var ao = (a.orden===null||a.orden===undefined) ? 9999 : Number(a.orden);
+      var bo = (b.orden===null||b.orden===undefined) ? 9999 : Number(b.orden);
+      return ao - bo;
+    });
+    // Si hay h\u00E1bitos sin orden asignado, fijar en Supabase seg\u00FAn posici\u00F3n actual
+    var needsFix = S.habits.some(function(h){ return h.orden===null||h.orden===undefined; });
+    if (needsFix) {
+      S.habits.forEach(function(h, i) {
+        h.orden = i;
+        fetch(SB_URL+'/rest/v1/habits?id=eq.'+h.id, {
+          method:'PATCH',
+          headers:Object.assign({},SB_HDRS,{'Prefer':'return=minimal'}),
+          body:JSON.stringify({orden:i})
+        });
+      });
+    }
     S.log      = results[1] || [];
     S.holidays = results[3] || [];
     S.kanban   = results[4] || [];
