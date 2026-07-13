@@ -489,7 +489,7 @@ input,select,textarea{font-size:16px !important}
 </div>
 
 <!-- MANAGE HABITS -->
-<div class="bs-overlay" id="bsMH" onclick="if(event.target===this)closeBs('bsMH')">
+<div class="bs-overlay" id="bsMH" onclick="if(event.target===this)closeMH()">
   <div class="bs">
     <div class="bs-handle"></div>
     <div class="bs-header">
@@ -1415,7 +1415,12 @@ function rChart(){
 // \u2500\u2500 MANAGE HABITS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function oMH(){rMHL();openBs('bsMH');}
 
-function closeMH(){closeBs('bsMH');rHoy();}
+function closeMH(){
+  var hl=document.getElementById('habitList');
+  if(hl) hl.innerHTML='';
+  closeBs('bsMH');
+  rHoy();
+}
 function rMHL(){
   var cont=document.getElementById('mhList');
   if(!S.habits.length){cont.innerHTML='<div style="padding:20px 0;font-size:16px;color:var(--text3)">Sin h\u00e1bitos todav\u00eda</div>';return;}
@@ -1510,6 +1515,9 @@ function saveMHLOrder(cont){
   S.habits=newOrder;
   // Actualizar orden en memoria
   S.habits.forEach(function(h,i){ h.orden=i; });
+  // Forzar rebuild completo del listado (limpiar DOM para que no use path quirúrgico)
+  var hl=document.getElementById('habitList');
+  if(hl) hl.innerHTML='';
   // Re-render inmediato del Tab Hoy con el nuevo orden
   rHoy();
   // Persistir en Supabase en background
