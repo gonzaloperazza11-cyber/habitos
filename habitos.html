@@ -496,7 +496,7 @@ input,select,textarea{font-size:16px !important}
       <div class="bs-title">Mis h&aacute;bitos</div>
       <div style="display:flex;gap:10px;align-items:center">
         <button onclick="closeBs('bsMH');openBs('bsAddHabit')" style="height:44px;padding:0 20px;background:var(--accent);color:white;border:none;border-radius:99px;font-family:var(--f);font-size:16px;font-weight:600;cursor:pointer">+ Nuevo</button>
-        <button class="bs-close" onclick="closeBs('bsMH')">&#x2715;</button>
+        <button class="bs-close" onclick="closeMH()">&#x2715;</button>
       </div>
     </div>
     <div class="mh-list" id="mhList"></div>
@@ -956,12 +956,17 @@ function rHoy() {
   for(var dk in IDX.byDate){if(dk>=wsS&&dk<=weS)(IDX.byDate[dk]||[]).forEach(function(l){if(wkMap[l.habit_id]!==undefined)wkMap[l.habit_id]++;});}
 
   var existing=cont.querySelectorAll('.habit-row');
-  if(existing.length===active.length){
+  // Verificar si el orden del DOM coincide con S.habits
+  var orderMatch = existing.length===active.length && active.every(function(h,i){
+    return existing[i] && existing[i].dataset.hid===String(h.id);
+  });
+
+  if(orderMatch){
+    // Orden correcto \u2014 solo actualizar estados
     var prevDone=cont.dataset.allDone==='1',allDoneNow=true;
     active.forEach(function(h,i){
       var el=existing[i],done=!!IDX.byHabitDate[ds+'|'+String(h.id)];
       var wl=wkMap[String(h.id)]||0;
-      // maxed: lleg\u00F3 al l\u00EDmite semanal (ya sea que hoy est\u00E9 marcado o no)
       var maxed=!done&&wl>=h.frecuencia_max;
       if(!done)allDoneNow=false;
       el.classList.toggle('done',done);
@@ -973,6 +978,7 @@ function rHoy() {
     if(allDoneNow&&!prevDone&&active.length>0)celebrateMob();
     return;
   }
+  // Orden cambi\u00F3 o lista nueva \u2014 rebuild completo
 
   cont.innerHTML='';
   var frag=document.createDocumentFragment(),allDone=true;
@@ -1408,6 +1414,8 @@ function rChart(){
 
 // \u2500\u2500 MANAGE HABITS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function oMH(){rMHL();openBs('bsMH');}
+
+function closeMH(){closeBs('bsMH');rHoy();}
 function rMHL(){
   var cont=document.getElementById('mhList');
   if(!S.habits.length){cont.innerHTML='<div style="padding:20px 0;font-size:16px;color:var(--text3)">Sin h\u00e1bitos todav\u00eda</div>';return;}
@@ -1495,11 +1503,16 @@ function initMHLDnD(cont){
 
 function saveMHLOrder(cont){
   var ids=Array.from(cont.querySelectorAll('.mh-item')).map(function(i){return i.dataset.id;});
+  // Reordenar S.habits inmediatamente seg\u00FAn el nuevo orden visual
   var newOrder=[];
   ids.forEach(function(id){ var h=S.habits.find(function(h){return String(h.id)===id;}); if(h)newOrder.push(h); });
   S.habits.forEach(function(h){if(ids.indexOf(String(h.id))===-1)newOrder.push(h);});
   S.habits=newOrder;
-  rHoy(); // refrescar orden en Tab Hoy
+  // Actualizar orden en memoria
+  S.habits.forEach(function(h,i){ h.orden=i; });
+  // Re-render inmediato del Tab Hoy con el nuevo orden
+  rHoy();
+  // Persistir en Supabase en background
   ids.forEach(function(id,i){
     fetch(SB_URL+'/rest/v1/habits?id=eq.'+id,{
       method:'PATCH',
@@ -1507,7 +1520,7 @@ function saveMHLOrder(cont){
       body:JSON.stringify({orden:i})
     });
   });
-  toast('Orden guardado','ok');
+  toast('Orden actualizado','ok');
 }
 function selColor(el){document.querySelectorAll('#bsAddHabit .color-swatch').forEach(function(s){s.classList.remove('active');});el.classList.add('active');document.getElementById('mhC').value=el.dataset.color;}
 function selColorEdit(el){document.querySelectorAll('#ehColors .color-swatch').forEach(function(s){s.classList.remove('active');});el.classList.add('active');document.getElementById('ehC').value=el.dataset.color;}
