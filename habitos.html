@@ -444,11 +444,13 @@ input,select,textarea{font-size:16px !important}
       <button class="sheet-close" onclick="closeDaySheet()">&#x2715;</button>
     </div>
     <div class="sheet-actions">
-      <button class="sheet-action-btn" onclick="dayActHabits()">Ver h&aacute;bitos del d&iacute;a</button>
-      <button class="sheet-action-btn" onclick="dayActTask()">A&ntilde;adir actividad</button>
+      <button class="sheet-action-btn" onclick="dayActHabits()">Ver h&aacute;bitos</button>
+      <button class="sheet-action-btn" onclick="dayActTask()">+ Actividad</button>
       <button class="sheet-action-btn" id="dayActHolBtn" onclick="dayActHol()">Marcar feriado</button>
       <button class="sheet-action-btn danger" id="dayActUHolBtn" onclick="dayActUHol()" style="display:none">Quitar feriado</button>
     </div>
+    <!-- Actividades del día -->
+    <div id="dayTasksList" style="padding:0 16px 8px;display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -1202,6 +1204,34 @@ function oDS(ds){
   var isH=S.holidays.some(function(h){return h.fecha===ds;});
   document.getElementById('dayActHolBtn').style.display=isH?'none':'';
   document.getElementById('dayActUHolBtn').style.display=isH?'':'none';
+
+  // Mostrar actividades del d\u00EDa
+  var cont=document.getElementById('dayTasksList');
+  var dayTasks=S.tasks.filter(function(t){ return t.fecha_limite===ds; })
+    .sort(function(a,b){ return a.completada-b.completada; });
+
+  if(!dayTasks.length){
+    cont.innerHTML='<div style="font-size:13px;color:var(--text3);padding:4px 4px 8px;text-align:center">Sin actividades este d\u00eda</div>';
+  } else {
+    cont.innerHTML='<div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);padding:4px 4px 2px">Actividades</div>'
+      + dayTasks.map(function(t){
+        var dias=t.fecha_limite?dDiff(t.fecha_limite):999;
+        var cat=t.categoria||'Personal';
+        var catColors={'Personal':'#7C3AED','Facultad':'#1D4ED8','Trabajo':'#047857','Emprendimiento':'#B45309'};
+        var catBgs={'Personal':'#EDE9FE','Facultad':'#DBEAFE','Trabajo':'#D1FAE5','Emprendimiento':'#FEF3C7'};
+        return '<div onclick="closeDaySheet();oEditTask(\''+t.id+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 12px;background:var(--surface);border-radius:12px;border:1px solid var(--border);cursor:pointer'+(t.completada?';opacity:.5':'')+'">'
+          +'<div style="width:20px;height:20px;border-radius:6px;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;background:'+(t.completada?'var(--accent)':'transparent')+';border-color:'+(t.completada?'var(--accent)':'var(--border)')+'"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" style="opacity:'+(t.completada?'1':'0')+'"><polyline points="2,6 5,9 10,3"/></svg></div>'
+          +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:14px;font-weight:500;'+(t.completada?'text-decoration:line-through;':'')+'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+( t.titulo||'Sin t\u00edtulo')+'</div>'
+          +'<div style="display:flex;gap:6px;margin-top:3px;align-items:center">'
+          +'<span style="font-size:11px;font-weight:600;padding:1px 8px;border-radius:99px;background:'+(catBgs[cat]||'#F3F4F6')+';color:'+(catColors[cat]||'#374151')+'">'+cat+'</span>'
+          +(t.detalle?'<span style="font-size:11px;color:var(--text3)">'+t.detalle+'</span>':'')
+          +'</div></div>'
+          +'<div style="color:var(--text3);font-size:16px;flex-shrink:0">&#x203A;</div>'
+          +'</div>';
+      }).join('');
+  }
+
   document.getElementById('daySheet').classList.add('open');
 }
 function closeDaySheet(){document.getElementById('daySheet').classList.remove('open');}
