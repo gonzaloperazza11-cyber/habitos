@@ -221,17 +221,53 @@ input,select,textarea{font-size:16px !important}
 @keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(50px) rotate(540deg);opacity:0}}
 
 /* KANBAN */
-.kb-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:16px}
-.kb-col{background:var(--bg2);border-radius:14px;padding:10px;min-height:100px}
-.kb-col-header{display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:12px;font-weight:600;color:var(--text2)}
-.kb-col-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.kb-count{margin-left:auto;background:var(--border);border-radius:99px;padding:1px 6px;font-size:11px;font-weight:600;color:var(--text3)}
-.kb-cards{display:flex;flex-direction:column;gap:6px;min-height:40px}
-.kb-card{background:var(--surface);border-radius:10px;padding:10px;border:1px solid var(--border);cursor:grab;font-size:13px;font-weight:500;line-height:1.3;transition:box-shadow .15s,opacity .15s;user-select:none;-webkit-user-select:none}
-.kb-card:active{cursor:grabbing}
-.kb-card.dragging{opacity:.35;box-shadow:0 8px 24px rgba(0,0,0,.15)}
-.kb-card-desc{font-size:11px;color:var(--text3);margin-top:4px;font-weight:400}
-.kb-cards.kb-over{background:var(--accentbg);border:2px dashed var(--accent3);border-radius:10px;transition:background .15s}
+/* KANBAN TABS */
+.kb-tabs{display:flex;padding:14px 20px 0;overflow-x:auto;scrollbar-width:none;flex-shrink:0;border-bottom:1px solid var(--border)}
+.kb-tabs::-webkit-scrollbar{display:none}
+.kb-tab{display:flex;align-items:center;gap:7px;padding:10px 16px;background:none;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1px;font-family:var(--f);font-size:14px;font-weight:500;color:var(--text3);cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0}
+.kb-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.kb-tab-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.kb-tab-cnt{background:var(--border);border-radius:99px;padding:1px 7px;font-size:11px;font-weight:600;color:var(--text3)}
+.kb-tab.active .kb-tab-cnt{background:var(--accentbg);color:var(--accent)}
+/* KANBAN CARDS */
+.kb-card-list{flex:1;overflow-y:auto;padding:12px 20px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.kb-card-list::-webkit-scrollbar{display:none}
+.kb-card{background:var(--surface);border-radius:16px;border:1px solid var(--border);padding:16px;cursor:pointer;transition:transform .12s,box-shadow .12s;user-select:none;-webkit-user-select:none}
+.kb-card:active{transform:scale(.98);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.kb-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px}
+.kb-card-title{font-size:16px;font-weight:600;line-height:1.3}
+.kb-card-desc{font-size:13px;color:var(--text3);line-height:1.4;margin-bottom:10px}
+.kb-card-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:15px;padding:2px 4px;line-height:1;flex-shrink:0}
+.kb-card-progress{margin-bottom:10px}
+.kb-progress-label{font-size:11px;color:var(--text3);margin-bottom:5px;display:flex;justify-content:space-between}
+.kb-progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.kb-progress-fill{height:100%;border-radius:2px;background:var(--accent3);transition:width .4s ease}
+.kb-card-footer{display:flex;align-items:center;justify-content:space-between}
+.kb-card-status{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text3)}
+.kb-card-status-dot{width:7px;height:7px;border-radius:50%}
+.kb-move-btns{display:flex;gap:6px}
+.kb-move-btn{height:30px;padding:0 12px;border:1.5px solid var(--border);border-radius:99px;background:none;font-family:var(--f);font-size:12px;font-weight:600;cursor:pointer;color:var(--text2)}
+.kb-move-btn.primary{background:var(--accent);color:white;border-color:var(--accent)}
+/* KANBAN DETAIL SHEET */
+.kb-detail-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0);pointer-events:none;transition:background .25s}
+.kb-detail-overlay.open{background:rgba(0,0,0,.45);pointer-events:all}
+.kb-detail-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;max-height:92vh;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.kb-detail-overlay.open .kb-detail-sheet{transform:none}
+/* ESTADO PILLS */
+.estado-pills{display:flex;gap:8px}
+.estado-pill{flex:1;padding:10px;border-radius:12px;border:2px solid var(--border);background:none;font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--text2);transition:all .15s}
+.estado-pill.ap-todo{border-color:#E85555;background:#FEF2F2;color:#E85555}
+.estado-pill.ap-doing{border-color:#3B82F6;background:#EFF6FF;color:#3B82F6}
+.estado-pill.ap-done{border-color:var(--accent);background:var(--accentbg);color:var(--accent)}
+/* SUBTAREAS */
+.subtask-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2);border-radius:12px;margin-bottom:6px}
+.subtask-check{width:22px;height:22px;border-radius:7px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .2s;background:var(--surface)}
+.subtask-check.done{background:var(--accent);border-color:var(--accent)}
+.subtask-check svg{width:12px;height:12px;fill:none;stroke:white;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.5);transition:all .2s}
+.subtask-check.done svg{opacity:1;transform:scale(1)}
+.subtask-input{flex:1;font-size:15px;font-weight:500;outline:none;border:none;background:none;font-family:var(--f);color:var(--text)}
+.subtask-input.done-text{color:var(--text3);text-decoration:line-through}
+.subtask-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px;flex-shrink:0}
 .kb-col-inline{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
 .kb-task-card{display:flex;align-items:center;gap:10px;padding:13px 14px;background:var(--surface);border-radius:12px;border:1px solid var(--border);cursor:pointer}
 .kb-task-status{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;cursor:pointer}
@@ -383,29 +419,26 @@ input,select,textarea{font-size:16px !important}
     </div>
 
     <!-- KANBAN -->
-    <div class="screen" id="s-board">
-      <div style="padding:22px 20px 0;display:flex;align-items:center;justify-content:space-between">
+    <div class="screen" id="s-board" style="display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:22px 20px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
         <div class="page-title">Tablero</div>
         <button class="pill-btn" onclick="oAddKanban()">+ Nueva</button>
       </div>
-      <!-- Kanban propio -->
-      <div style="padding:16px 20px 0">
-        <div class="section-label" style="padding:0;margin-bottom:10px">Tareas propias</div>
-        <div class="kb-cols" id="kbCols">
-          <div class="kb-col">
-            <div class="kb-col-header"><div class="kb-col-dot" style="background:#E85555"></div><span>Por hacer</span><span class="kb-count" id="kbCnt0">0</span></div>
-            <div class="kb-cards" id="kb0" data-estado="todo"></div>
-          </div>
-          <div class="kb-col">
-            <div class="kb-col-header"><div class="kb-col-dot" style="background:#3B82F6"></div><span>En progreso</span><span class="kb-count" id="kbCnt1">0</span></div>
-            <div class="kb-cards" id="kb1" data-estado="doing"></div>
-          </div>
-          <div class="kb-col">
-            <div class="kb-col-header"><div class="kb-col-dot" style="background:var(--accent)"></div><span>Hecho</span><span class="kb-count" id="kbCnt2">0</span></div>
-            <div class="kb-cards" id="kb2" data-estado="done"></div>
-          </div>
-        </div>
+      <div class="kb-tabs" id="kbTabs">
+        <button class="kb-tab active" data-estado="todo" onclick="switchKbTab('todo',this)">
+          <span class="kb-tab-dot" style="background:#E85555"></span>
+          Por hacer <span class="kb-tab-cnt" id="kbTabCnt0">0</span>
+        </button>
+        <button class="kb-tab" data-estado="doing" onclick="switchKbTab('doing',this)">
+          <span class="kb-tab-dot" style="background:#3B82F6"></span>
+          En progreso <span class="kb-tab-cnt" id="kbTabCnt1">0</span>
+        </button>
+        <button class="kb-tab" data-estado="done" onclick="switchKbTab('done',this)">
+          <span class="kb-tab-dot" style="background:var(--accent)"></span>
+          Hecho <span class="kb-tab-cnt" id="kbTabCnt2">0</span>
+        </button>
       </div>
+      <div class="kb-card-list" id="kbCardList"></div>
     </div>
 
   </div>
@@ -597,6 +630,57 @@ input,select,textarea{font-size:16px !important}
         </select>
       </div>
       <button class="bs-submit" id="kbSubmit" onclick="sKanban()">Agregar tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- KANBAN DETAIL SHEET -->
+<div class="kb-detail-overlay" id="kbDetail" onclick="if(event.target===this)closeKbDetail()">
+  <div class="kb-detail-sheet">
+    <div class="bs-handle"></div>
+    <div class="bs-header">
+      <div class="bs-title" id="kbDetailTitle"></div>
+      <button class="bs-close" onclick="closeKbDetail()">&#x2715;</button>
+    </div>
+    <div class="bs-body">
+      <input type="hidden" id="kbDetailId">
+      <!-- Estado -->
+      <div>
+        <div class="bs-label">Estado</div>
+        <div class="estado-pills" style="margin-top:10px">
+          <button class="estado-pill" id="kbPillTodo" onclick="setKbEstado('todo')"><span style="width:8px;height:8px;border-radius:50%;background:#E85555;display:inline-block"></span>Por hacer</button>
+          <button class="estado-pill" id="kbPillDoing" onclick="setKbEstado('doing')"><span style="width:8px;height:8px;border-radius:50%;background:#3B82F6;display:inline-block"></span>En progreso</button>
+          <button class="estado-pill" id="kbPillDone" onclick="setKbEstado('done')"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block"></span>Hecho</button>
+        </div>
+      </div>
+      <!-- Progreso -->
+      <div id="kbDetailProgress" style="background:var(--bg2);border-radius:14px;padding:14px 16px;display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:var(--text2)">Progreso subtareas</div>
+          <div style="font-size:20px;font-weight:700;color:var(--accent)" id="kbProgressPct">0%</div>
+        </div>
+        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden">
+          <div id="kbProgressFill" style="height:100%;border-radius:4px;background:var(--accent3);transition:width .5s ease;width:0%"></div>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-top:6px" id="kbProgressSub">0 de 0 completadas</div>
+      </div>
+      <!-- Subtareas -->
+      <div>
+        <div class="bs-label">Subtareas</div>
+        <div id="kbSubtasksList" style="margin-top:10px"></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg2);border-radius:12px;margin-top:6px">
+          <input id="kbNewSubtask" class="bs-input" style="flex:1;min-height:44px;height:44px;padding:10px 14px;font-size:15px" placeholder="Agregar subtarea..." onkeydown="if(event.key==='Enter')addKbSubtask()">
+          <button onclick="addKbSubtask()" style="height:44px;padding:0 16px;background:var(--accent);color:white;border:none;border-radius:10px;font-family:var(--f);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0">+ Agregar</button>
+        </div>
+      </div>
+      <!-- Descripcion -->
+      <div>
+        <div class="bs-label">Descripci&oacute;n / Notas</div>
+        <textarea id="kbDetailDesc" rows="5" class="bs-input" style="resize:none;line-height:1.6;height:auto;min-height:120px" placeholder="Agrega detalles, notas, contexto..."></textarea>
+      </div>
+      <!-- Guardar -->
+      <button class="bs-submit" onclick="saveKbDetail()">Guardar cambios</button>
+      <button onclick="delKbFromDetail()" class="btn-danger">Eliminar tarea</button>
     </div>
   </div>
 </div>
@@ -1515,7 +1599,7 @@ function saveMHLOrder(cont){
   S.habits=newOrder;
   // Actualizar orden en memoria
   S.habits.forEach(function(h,i){ h.orden=i; });
-  // Forzar rebuild completo del listado (limpiar DOM para que no use path quirúrgico)
+  // Forzar rebuild completo del listado (limpiar DOM para que no use path quir\u00FArgico)
   var hl=document.getElementById('habitList');
   if(hl) hl.innerHTML='';
   // Re-render inmediato del Tab Hoy con el nuevo orden
@@ -1672,90 +1756,90 @@ function loadKanban() {
 }
 
 // \u2500\u2500 BOARD RENDER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function rBoard() {
+// \u2500\u2500 KANBAN \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+var kbCurrentTab = 'todo';
+var KB_STATUS = {
+  todo:  {label:'Por hacer',   dot:'#E85555'},
+  doing: {label:'En progreso', dot:'#3B82F6'},
+  done:  {label:'Hecho',       dot:'var(--accent)'}
+};
+
+function switchKbTab(estado, btn) {
+  kbCurrentTab = estado;
+  document.querySelectorAll('.kb-tab').forEach(function(b){ b.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  else {
+    var b = document.querySelector('.kb-tab[data-estado="'+estado+'"]');
+    if (b) b.classList.add('active');
+  }
   rKbCards();
 }
 
+function kbGetProgress(k) {
+  if (!k.subtasks || !k.subtasks.length) return null;
+  var done = k.subtasks.filter(function(s){ return s.done; }).length;
+  return {done:done, total:k.subtasks.length, pct:Math.round(done/k.subtasks.length*100)};
+}
+
+function rBoard() { rKbCards(); }
 
 function rKbCards() {
-  var cols = {todo:[], doing:[], done:[]};
-  S.kanban.forEach(function(k){ if(cols[k.estado]) cols[k.estado].push(k); });
-  ['todo','doing','done'].forEach(function(st,i) {
-    var cont = document.getElementById('kb'+i);
-    var cnt  = document.getElementById('kbCnt'+i);
-    if (!cont) return;
-    cnt.textContent = cols[st].length;
-    cont.innerHTML = '';
-    if (!cols[st].length) {
-      var empty = document.createElement('div');
-      empty.style.cssText = 'font-size:12px;color:var(--text3);padding:12px 0;text-align:center';
-      empty.textContent = 'Arrastr\u00e1 aqu\u00ed';
-      cont.appendChild(empty);
-    }
-    cols[st].forEach(function(k) {
-      var card = document.createElement('div');
-      card.className = 'kb-card';
-      card.draggable = true;
-      card.dataset.id = k.id;
-      card.innerHTML =
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">'
-        +'<div class="kb-card-body" style="flex:1;cursor:pointer">'
-        +'<div style="font-size:13px;font-weight:500;line-height:1.3">'+k.titulo+'</div>'
-        +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
-        +'</div>'
-        +'<button class="kb-del-btn" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 2px;line-height:1;flex-shrink:0">\u2715</button>'
+  // Contadores
+  ['todo','doing','done'].forEach(function(st,i){
+    var el = document.getElementById('kbTabCnt'+i);
+    if (el) el.textContent = S.kanban.filter(function(k){ return k.estado===st; }).length;
+  });
+
+  var list = document.getElementById('kbCardList');
+  if (!list) return;
+  var filtered = S.kanban.filter(function(k){ return k.estado===kbCurrentTab; });
+  var st = KB_STATUS[kbCurrentTab];
+  list.innerHTML = '';
+
+  if (!filtered.length) {
+    var empty = document.createElement('div');
+    empty.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:60px 20px;color:var(--text3);text-align:center';
+    empty.innerHTML = '<div style="font-size:36px;opacity:.3">&#x2726;</div><div style="font-size:15px;font-weight:500;color:var(--text2)">Sin tareas aqu\u00ED</div><div style="font-size:13px">Toc\u00E1 + Nueva para agregar</div>';
+    list.appendChild(empty);
+    return;
+  }
+
+  filtered.forEach(function(k) {
+    var prog = kbGetProgress(k);
+    var card = document.createElement('div');
+    card.className = 'kb-card';
+
+    var progressHTML = '';
+    if (prog) {
+      progressHTML = '<div class="kb-card-progress">'
+        +'<div class="kb-progress-label"><span>'+prog.done+'/'+prog.total+' subtareas</span><span style="font-weight:600;color:var(--accent)">'+prog.pct+'%</span></div>'
+        +'<div class="kb-progress-bar"><div class="kb-progress-fill" style="width:'+prog.pct+'%"></div></div>'
         +'</div>';
-      card.querySelector('.kb-card-body').addEventListener('click',function(e){e.stopPropagation();oEditKanban(k.id);});
-      card.querySelector('.kb-del-btn').addEventListener('click',function(e){e.stopPropagation();delKanban(k.id);});
-      // Desktop drag
-      card.addEventListener('dragstart',function(e){kbDragging=k.id;card.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',k.id);});
-      card.addEventListener('dragend',function(){card.classList.remove('dragging');kbDragging=null;document.querySelectorAll('.kb-cards').forEach(function(c){c.classList.remove('kb-over');});});
-      // Touch drag mobile
-      var touchClone=null;
-      card.addEventListener('touchstart',function(e){
-        var t=e.touches[0]; kbDragging=k.id;
-        touchClone=card.cloneNode(true);
-        touchClone.style.cssText='position:fixed;z-index:9999;opacity:.85;pointer-events:none;width:'+card.offsetWidth+'px;transform:scale(1.04);box-shadow:0 8px 24px rgba(0,0,0,.18);border-radius:10px';
-        touchClone.style.left=(t.clientX-card.offsetWidth/2)+'px';
-        touchClone.style.top=(t.clientY-card.offsetHeight/2)+'px';
-        document.body.appendChild(touchClone);
-        card.style.opacity='0.3';
-      },{passive:true});
-      card.addEventListener('touchmove',function(e){
-        if(!touchClone)return; e.preventDefault();
-        var t=e.touches[0];
-        touchClone.style.left=(t.clientX-card.offsetWidth/2)+'px';
-        touchClone.style.top=(t.clientY-card.offsetHeight/2)+'px';
-        document.querySelectorAll('.kb-cards').forEach(function(c){c.classList.remove('kb-over');});
-        touchClone.style.display='none';
-        var el=document.elementFromPoint(t.clientX,t.clientY);
-        touchClone.style.display='';
-        var col=el&&el.closest('.kb-cards');
-        if(col)col.classList.add('kb-over');
-      },{passive:false});
-      card.addEventListener('touchend',function(e){
-        if(touchClone){touchClone.remove();touchClone=null;}
-        card.style.opacity='';
-        document.querySelectorAll('.kb-cards').forEach(function(c){c.classList.remove('kb-over');});
-        var t=e.changedTouches[0];
-        var el=document.elementFromPoint(t.clientX,t.clientY);
-        var col=el&&el.closest('.kb-cards');
-        if(col&&col.dataset.estado&&col.dataset.estado!==st)moveKanban(k.id,col.dataset.estado);
-        kbDragging=null;
-      });
-      cont.appendChild(card);
-    });
-    // Desktop drop zone
-    cont.addEventListener('dragover',function(e){e.preventDefault();cont.classList.add('kb-over');});
-    cont.addEventListener('dragleave',function(){cont.classList.remove('kb-over');});
-    cont.addEventListener('drop',function(e){
-      e.preventDefault();cont.classList.remove('kb-over');
-      var id=e.dataTransfer.getData('text/plain')||kbDragging;
-      if(!id)return;
-      var k2=S.kanban.find(function(x){return x.id===id;});
-      if(k2&&k2.estado!==st)moveKanban(id,st);
-      kbDragging=null;
-    });
+    }
+
+    card.innerHTML =
+      '<div class="kb-card-top">'
+      +'<div class="kb-card-title">'+k.titulo+'</div>'
+      +'<button class="kb-card-del">&#x2715;</button>'
+      +'</div>'
+      +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
+      + progressHTML
+      +'<div class="kb-card-footer">'
+      +'<div class="kb-card-status"><span class="kb-card-status-dot" style="background:'+st.dot+'"></span>'+st.label+'</div>'
+      +'<div class="kb-move-btns">'
+      +(kbCurrentTab!=='todo'?'<button class="kb-move-btn kb-back-btn">&#x2190;</button>':'')
+      +(kbCurrentTab!=='done'?'<button class="kb-move-btn primary kb-fwd-btn">Avanzar &#x2192;</button>':'')
+      +'</div></div>';
+
+    // Events
+    card.addEventListener('click', function(){ openKbDetail(k.id); });
+    card.querySelector('.kb-card-del').addEventListener('click',function(e){ e.stopPropagation(); delKanban(k.id); });
+    var backBtn = card.querySelector('.kb-back-btn');
+    if (backBtn) backBtn.addEventListener('click',function(e){ e.stopPropagation(); moveKanban(k.id, kbCurrentTab==='done'?'doing':'todo'); });
+    var fwdBtn = card.querySelector('.kb-fwd-btn');
+    if (fwdBtn) fwdBtn.addEventListener('click',function(e){ e.stopPropagation(); moveKanban(k.id, kbCurrentTab==='todo'?'doing':'done'); });
+
+    list.appendChild(card);
   });
 }
 
@@ -1764,7 +1848,7 @@ function moveKanban(id, newEstado) {
   if (!k) return;
   k.estado = newEstado;
   rKbCards();
-  sbPatch('kanban', id, {estado: newEstado});
+  sbPatch('kanban', id, {estado: newEstado}).then(function(){ toast(KB_STATUS[newEstado].label,'ok'); });
 }
 
 function delKanban(id) {
@@ -1774,77 +1858,159 @@ function delKanban(id) {
   sbDelete('kanban', id);
 }
 
-// \u2500\u2500 KANBAN CRUD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// \u2500\u2500 KANBAN DETAIL \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function openKbDetail(id) {
+  var k = S.kanban.find(function(k){ return k.id===id; });
+  if (!k) return;
+  if (!k.subtasks) k.subtasks = [];
+  document.getElementById('kbDetailId').value = k.id;
+  document.getElementById('kbDetailTitle').textContent = k.titulo;
+  document.getElementById('kbDetailDesc').value = k.descripcion || '';
+  // Estado pills
+  ['todo','doing','done'].forEach(function(st){
+    var pill = document.getElementById('kbPill'+st.charAt(0).toUpperCase()+st.slice(1));
+    if (pill) { pill.className='estado-pill'; if(k.estado===st) pill.classList.add('ap-'+st); }
+  });
+  renderKbSubtasks(k);
+  document.getElementById('kbDetail').classList.add('open');
+  document.getElementById('kbNewSubtask').value = '';
+}
+
+function closeKbDetail() {
+  document.getElementById('kbDetail').classList.remove('open');
+  rKbCards();
+}
+
+function setKbEstado(nuevoEstado) {
+  var id = document.getElementById('kbDetailId').value;
+  var k = S.kanban.find(function(k){ return k.id===id; });
+  if (!k || k.estado===nuevoEstado) return;
+  k.estado = nuevoEstado;
+  ['todo','doing','done'].forEach(function(st){
+    var pill = document.getElementById('kbPill'+st.charAt(0).toUpperCase()+st.slice(1));
+    if (pill) { pill.className='estado-pill'; if(nuevoEstado===st) pill.classList.add('ap-'+st); }
+  });
+  kbCurrentTab = nuevoEstado;
+  document.querySelectorAll('.kb-tab').forEach(function(b){
+    b.classList.toggle('active', b.dataset.estado===nuevoEstado);
+  });
+  sbPatch('kanban', id, {estado: nuevoEstado});
+  toast(KB_STATUS[nuevoEstado].label,'ok');
+}
+
+function renderKbSubtasks(k) {
+  var prog = kbGetProgress(k);
+  var wrap = document.getElementById('kbDetailProgress');
+  if (prog) {
+    wrap.style.display = '';
+    document.getElementById('kbProgressPct').textContent = prog.pct+'%';
+    document.getElementById('kbProgressFill').style.width = prog.pct+'%';
+    document.getElementById('kbProgressSub').textContent = prog.done+' de '+prog.total+' completadas';
+  } else { wrap.style.display = 'none'; }
+
+  var cont = document.getElementById('kbSubtasksList');
+  cont.innerHTML = '';
+  if (!k.subtasks || !k.subtasks.length) {
+    cont.innerHTML = '<div style="font-size:14px;color:var(--text3);padding:8px 0 4px;text-align:center">Sin subtareas todav\u00eda</div>';
+    return;
+  }
+  k.subtasks.forEach(function(s) {
+    var item = document.createElement('div');
+    item.className = 'subtask-item';
+    item.innerHTML =
+      '<div class="subtask-check'+(s.done?' done':'')+'">'
+      +'<svg viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg>'
+      +'</div>'
+      +'<input class="subtask-input'+(s.done?' done-text':'')+'" value="'+s.texto.replace(/"/g,'&quot;')+'">'
+      +'<button class="subtask-del">&#x2715;</button>';
+    item.querySelector('.subtask-check').addEventListener('click',function(){
+      s.done = !s.done;
+      var id = document.getElementById('kbDetailId').value;
+      var k2 = S.kanban.find(function(k){ return k.id===id; });
+      if (k2) { renderKbSubtasks(k2); sbPatch('kanban',id,{subtasks:JSON.stringify(k2.subtasks)}); }
+    });
+    var inp = item.querySelector('.subtask-input');
+    inp.addEventListener('blur',function(){
+      s.texto = inp.value.trim() || s.texto;
+    });
+    inp.addEventListener('keydown',function(e){ if(e.key==='Enter') inp.blur(); });
+    item.querySelector('.subtask-del').addEventListener('click',function(){
+      var id = document.getElementById('kbDetailId').value;
+      var k2 = S.kanban.find(function(k){ return k.id===id; });
+      if (!k2) return;
+      k2.subtasks = k2.subtasks.filter(function(x){ return x.id!==s.id; });
+      renderKbSubtasks(k2);
+    });
+    cont.appendChild(item);
+  });
+}
+
+function addKbSubtask() {
+  var inp = document.getElementById('kbNewSubtask');
+  var texto = inp.value.trim();
+  if (!texto) return;
+  var id = document.getElementById('kbDetailId').value;
+  var k = S.kanban.find(function(k){ return k.id===id; });
+  if (!k) return;
+  k.subtasks.push({id:'s'+Date.now(), texto:texto, done:false});
+  inp.value = '';
+  renderKbSubtasks(k);
+}
+
+function saveKbDetail() {
+  var id = document.getElementById('kbDetailId').value;
+  var de = document.getElementById('kbDetailDesc').value.trim();
+  var k = S.kanban.find(function(k){ return k.id===id; });
+  if (!k) return;
+  k.descripcion = de;
+  sbPatch('kanban', id, {descripcion:de, subtasks:JSON.stringify(k.subtasks||[])})
+    .then(function(){ toast('Guardado','ok'); closeKbDetail(); });
+}
+
+function delKbFromDetail() {
+  var id = document.getElementById('kbDetailId').value;
+  if (!confirm('Eliminar esta tarea?')) return;
+  S.kanban = S.kanban.filter(function(k){ return k.id!==id; });
+  closeKbDetail();
+  sbDelete('kanban', id);
+  toast('Eliminada','ok');
+}
+
+// \u2500\u2500 KANBAN CRUD (nueva tarea) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function oAddKanban() {
   document.getElementById('kbId').value = '';
   document.getElementById('kbTi').value = '';
   document.getElementById('kbDe').value = '';
-  document.getElementById('kbSt').value = 'todo';
+  document.getElementById('kbSt').value = kbCurrentTab;
   document.querySelector('#bsKanban .bs-title').textContent = 'Nueva tarea';
   document.getElementById('kbSubmit').textContent = 'Agregar tarea';
   openBs('bsKanban');
 }
 
 function oEditKanban(id) {
-  var k = S.kanban.find(function(k){ return k.id===id; });
-  if (!k) return;
-  document.getElementById('kbId').value = k.id;
-  document.getElementById('kbTi').value = k.titulo;
-  document.getElementById('kbDe').value = k.descripcion || '';
-  document.getElementById('kbSt').value = k.estado || 'todo';
-  document.querySelector('#bsKanban .bs-title').textContent = 'Editar tarea';
-  document.getElementById('kbSubmit').textContent = 'Guardar cambios';
-  openBs('bsKanban');
+  openKbDetail(id);
 }
 
 function sKanban() {
-  var id  = document.getElementById('kbId').value;
-  var ti  = document.getElementById('kbTi').value.trim();
-  var de  = document.getElementById('kbDe').value.trim();
-  var st  = document.getElementById('kbSt').value;
-  if (!ti) { toast('Escrib\u00ed el t\u00edtulo','er'); return; }
+  var id = document.getElementById('kbId').value;
+  var ti = document.getElementById('kbTi').value.trim();
+  var de = document.getElementById('kbDe').value.trim();
+  var st = document.getElementById('kbSt').value;
+  if (!ti) { toast('Escrib\u00ED el t\u00EDtulo','er'); return; }
   closeBs('bsKanban');
   if (id) {
     var k = S.kanban.find(function(k){ return k.id===id; });
     if (k) { k.titulo=ti; k.descripcion=de; k.estado=st; }
     rBoard();
-    sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st})
-      .then(function(){ toast('Tarea actualizada','ok'); });
+    sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st}).then(function(){ toast('Actualizada','ok'); });
   } else {
     var newId = 'k'+Date.now();
-    S.kanban.push({id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length});
+    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length, subtasks:[]};
+    S.kanban.push(newK);
     rBoard();
     sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length-1})
       .then(function(){ toast('Tarea agregada','ok'); });
   }
-}
-
-// \u2500\u2500 KANBAN DRAG & DROP \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-var kbDragging = null;
-
-function kbDragStart(e, id) {
-  kbDragging = id;
-  e.target.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-
-function kbDragEnd(e) {
-  e.target.classList.remove('dragging');
-  kbDragging = null;
-}
-
-function kbDragOver(e, estado) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-}
-
-function kbDrop(e, estado) {
-  e.preventDefault();
-  if (!kbDragging) return;
-  var k = S.kanban.find(function(k){ return k.id===kbDragging; });
-  if (!k || k.estado === estado) return;
-  k.estado = estado;
-  sbPatch('kanban', k.id, {estado: estado}).then(function(){ rBoard(); });
 }
 
 // \u2500\u2500 TOAST \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
