@@ -694,6 +694,8 @@ var GSCOPES    = 'https://www.googleapis.com/auth/calendar openid profile email'
 var CAL_ID     = 'primary';
 var gToken     = null;
 
+var SESSION_KEY = 'habitos_user';
+
 function signIn() {
   var client = google.accounts.oauth2.initTokenClient({
     client_id: GCLIENT_ID,
@@ -705,9 +707,14 @@ function signIn() {
       fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: { 'Authorization': 'Bearer ' + gToken }
       }).then(function(r){ return r.json(); }).then(function(u) {
-        document.getElementById('userAvatar').src = u.picture || '';
-        document.getElementById('userName').textContent = u.given_name || u.name || '';
-        document.getElementById('userBadge').style.display = 'flex';
+        try {
+          localStorage.setItem(SESSION_KEY, JSON.stringify({
+            name: u.given_name || u.name || '',
+            picture: u.picture || '',
+            email: u.email || ''
+          }));
+        } catch(e) {}
+        setUserBadge(u.given_name || u.name || '', u.picture || '');
         startApp();
       });
     }
@@ -716,144 +723,81 @@ function signIn() {
 }
 
 function signOut() {
-  if (!confirm('Cerrar sesi\u00f3n?')) return;
-  google.accounts.oauth2.revoke(gToken, function(){});
-  gToken = null;
+  if (!confirm('Cerrar sesi\u00F3n?')) return;
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  if (gToken) google.accounts.oauth2.revoke(gToken, function(){});
+  gToken = null; gTokenExpiry = 0;
   document.getElementById('userBadge').style.display = 'none';
   document.getElementById('app').style.display = 'none';
-  var ls = document.getElementById('ls');
-  ls.classList.remove('out'); ls.style.display = 'none';
+  document.getElementById('ls').style.display = 'none';
   document.getElementById('loginScreen').classList.remove('out');
 }
 
 function showLoginError(msg) {
   var el = document.getElementById('loginError');
-  el.textContent = 'Error al iniciar sesi\u00f3n. Intent\u00e1 de nuevo.';
+  el.textContent = 'Error al iniciar sesi\u00F3n. Intent\u00E1 de nuevo.';
   el.style.display = 'block';
 }
 
-// \u2500\u2500 GOOGLE CALENDAR \u2014 SISTEMA ROBUSTO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-// Estrategia: pedir token fresco en cada operaci\u00F3n de Calendar.
-// Los tokens duran 1 hora pero no los reutilizamos entre operaciones.
-// Si el usuario tiene sesi\u00F3n activa con Google, el refresh es silencioso (<200ms).
-// Si fall\u00F3, la tarea ya est\u00E1 guardada en Supabase \u2014 Calendar es best-effort.
+function setUserBadge(name, picture) {
+  document.getElementById('userAvatar').src = picture || '';
+  document.getElementById('userName').textContent = name;
+  document.getElementById('userBadge').style.display = 'flex';
+}
 
-var gTokenExpiry = 0; // timestamp de expiraci\u00F3n
-
-function getCalToken() {
-  // Si el token actual a\u00FAn es v\u00E1lido (con 2 min de margen), usarlo
-  if (gToken && Date.now() < gTokenExpiry - 120000) {
-    return Promise.resolve(gToken);
+function tryAutoLogin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(e) {}
+  if (!saved) {
+    document.getElementById('loginScreen').style.display = 'flex';
+    return;
   }
-  // Pedir token nuevo silenciosamente
-  return new Promise(function(resolve) {
-    try {
-      var client = google.accounts.oauth2.initTokenClient({
-        client_id: GCLIENT_ID,
-        scope: GSCOPES,
-        prompt: '',        // sin popup si tiene sesi\u00F3n activa
-        callback: function(resp) {
-          if (resp.error || !resp.access_token) {
-            resolve(null); // falla silenciosamente
-            return;
-          }
-          gToken = resp.access_token;
-          gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
-          resolve(gToken);
+  // Hay sesion guardada: mostrar datos y cargar
+  setUserBadge(saved.name, saved.picture);
+  document.getElementById('loginScreen').classList.add('out');
+  document.getElementById('ls').style.display = 'flex';
+  // Renovar token silenciosamente
+  try {
+    var client = google.accounts.oauth2.initTokenClient({
+      client_id: GCLIENT_ID,
+      scope: GSCOPES,
+      prompt: 'none',
+      hint: saved.email || '',
+      callback: function(resp) {
+        if (resp.error || !resp.access_token) {
+          // No se pudo renovar: pedir login manual
+          document.getElementById('ls').style.display = 'none';
+          document.getElementById('loginScreen').classList.remove('out');
+          try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          return;
         }
-      });
-      client.requestAccessToken();
-    } catch(e) {
-      resolve(null); // si google.accounts no est\u00E1 disponible
-    }
-  });
-}
-
-function calApiCall(method, path, body) {
-  return getCalToken().then(function(token) {
-    if (!token) return null;
-    var opts = {
-      method: method,
-      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' }
-    };
-    if (body) opts.body = JSON.stringify(body);
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/'+path, opts)
-      .then(function(r) {
-        if (r.status === 204) return true; // DELETE exitoso
-        if (!r.ok) {
-          if (r.status === 401) { gToken = null; gTokenExpiry = 0; } // token inv\u00E1lido
-          return null;
-        }
-        return r.json().then(function(d) { return d.error ? null : d; });
-      });
-  }).catch(function() { return null; });
-}
-
-function calCreate(titulo, fecha, detalle, categoria) {
-  return calApiCall('POST', 'events', {
-    summary: '\ud83d\udccc ' + titulo,
-    description: (detalle||'') + '\n\nCategor\u00eda: ' + categoria + '\n[HabitTracker]',
-    start: { date: fecha },
-    end:   { date: fecha },
-    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1030 }] }
-  }).then(function(e) { return e && e.id ? e.id : null; });
-}
-
-function calUpdate(calId, titulo, fecha, detalle, categoria) {
-  if (!calId) return Promise.resolve(null);
-  return calApiCall('PUT', 'events/' + encodeURIComponent(calId), {
-    summary: '\ud83d\udccc ' + titulo,
-    description: (detalle||'') + '\n\nCategor\u00eda: ' + categoria + '\n[HabitTracker]',
-    start: { date: fecha },
-    end:   { date: fecha },
-    reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 1030 }] }
-  });
-}
-
-function calComplete(calId, titulo, completada) {
-  if (!calId) return Promise.resolve(null);
-  return calApiCall('PATCH', 'events/' + encodeURIComponent(calId), {
-    summary: (completada ? '\u2705 ' : '\ud83d\udccc ') + titulo
-  });
-}
-
-function calDelete(calId) {
-  if (!calId) return Promise.resolve(null);
-  return calApiCall('DELETE', 'events/' + encodeURIComponent(calId), null);
-}
-
-// Agregar a Calendar + guardar calEventId en Supabase
-function addToCalendar(taskId, ti, fe, de, ca) {
-  calCreate(ti, fe, de, ca).then(function(calEventId) {
-    if (!calEventId) return;
-    var t = S.tasks.find(function(t) { return t.id === taskId; });
-    if (t) t.cal_event_id = calEventId;
-    sbPatch('tasks', taskId, { cal_event_id: calEventId }).catch(function(){});
-  });
-}
-
-// Forzar sincronizaci\u00F3n manual desde el editor de tarea
-function syncTaskToCalendar(id) {
-  var t = S.tasks.find(function(t) { return t.id === id; });
-  if (!t) return;
-  if (t.cal_event_id) { toast('Ya tiene evento en Calendar', 'ok'); return; }
-  toast('Agregando a Calendar...', 'ok');
-  calCreate(t.titulo, t.fecha_limite, t.detalle||'', t.categoria||'Personal')
-    .then(function(calEventId) {
-      if (calEventId) {
-        t.cal_event_id = calEventId;
-        sbPatch('tasks', id, { cal_event_id: calEventId }).catch(function(){});
-        toast('Agregado a Google Calendar \u2713', 'ok');
-      } else {
-        toast('No se pudo conectar con Calendar', 'er');
+        gToken = resp.access_token;
+        gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { 'Authorization': 'Bearer ' + gToken }
+        }).then(function(r){ return r.json(); }).then(function(u) {
+          try {
+            localStorage.setItem(SESSION_KEY, JSON.stringify({
+              name: u.given_name || u.name || saved.name,
+              picture: u.picture || saved.picture,
+              email: u.email || saved.email
+            }));
+          } catch(e) {}
+          setUserBadge(u.given_name || u.name || saved.name, u.picture || saved.picture);
+          initData();
+        }).catch(function(){ initData(); });
       }
     });
+    client.requestAccessToken();
+  } catch(e) {
+    document.getElementById('ls').style.display = 'none';
+    document.getElementById('loginScreen').classList.remove('out');
+  }
 }
 
 function startApp() {
   document.getElementById('loginScreen').classList.add('out');
-  var ls = document.getElementById('ls');
-  ls.style.display = 'flex';
+  document.getElementById('ls').style.display = 'flex';
   initData();
 }
 
@@ -898,13 +842,22 @@ document.addEventListener('DOMContentLoaded', function() {
   S.vM  = new Date().getMonth();
 
   var h = new Date().getHours();
-  document.getElementById('hGreeting').textContent = h<12 ? 'Buenos d\u00edas' : h<18 ? 'Buenas tardes' : 'Buenas noches';
+  document.getElementById('hGreeting').textContent = h<12 ? 'Buenos d\u00EDas' : h<18 ? 'Buenas tardes' : 'Buenas noches';
 
   var MN=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var t=new Date();
   document.getElementById('hFecha').textContent = t.getDate()+' '+MN[t.getMonth()];
   document.getElementById('statsSubtitle').textContent = MN[S.vM]+' '+S.vY;
-  // NO cargamos datos hasta que el usuario inicie sesi\u00F3n con Google
+
+  // Esperar a que cargue la libreria de Google y luego intentar auto-login
+  function waitForGSI() {
+    if (typeof google !== 'undefined' && google.accounts) {
+      tryAutoLogin();
+    } else {
+      setTimeout(waitForGSI, 100);
+    }
+  }
+  waitForGSI();
 });
 
 function initData() {
