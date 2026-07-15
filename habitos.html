@@ -1779,18 +1779,11 @@ function rKbCards() {
       + progressHTML
       +'<div class="kb-card-footer">'
       +'<div class="kb-card-status"><span class="kb-card-status-dot" style="background:'+st.dot+'"></span>'+st.label+'</div>'
-      +'<div class="kb-move-btns">'
-      +(kbCurrentTab!=='todo'?'<button class="kb-move-btn kb-back-btn">&#x2190;</button>':'')
-      +(kbCurrentTab!=='done'?'<button class="kb-move-btn primary kb-fwd-btn">Avanzar &#x2192;</button>':'')
-      +'</div></div>';
+      +'</div>';
 
     // Events
     card.addEventListener('click', function(){ openKbDetail(k.id); });
     card.querySelector('.kb-card-del').addEventListener('click',function(e){ e.stopPropagation(); delKanban(k.id); });
-    var backBtn = card.querySelector('.kb-back-btn');
-    if (backBtn) backBtn.addEventListener('click',function(e){ e.stopPropagation(); moveKanban(k.id, kbCurrentTab==='done'?'doing':'todo'); });
-    var fwdBtn = card.querySelector('.kb-fwd-btn');
-    if (fwdBtn) fwdBtn.addEventListener('click',function(e){ e.stopPropagation(); moveKanban(k.id, kbCurrentTab==='todo'?'doing':'done'); });
 
     list.appendChild(card);
   });
