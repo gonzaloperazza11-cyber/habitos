@@ -393,10 +393,16 @@ input,select,textarea{font-size:16px !important}
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 20px 8px">
         <div class="section-label" style="padding:0;margin:0">Actividades futuras</div>
-        <div style="display:flex;gap:8px">
-<button class="pill-btn" onclick="oAddTask()">+ Nueva</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="taskFilterBtn" onclick="openTaskFilter()" style="height:36px;padding:0 14px;background:var(--surface);color:var(--text2);border:1.5px solid var(--border);border-radius:99px;font-family:var(--f);font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="4" y1="8" x2="12" y2="8"/><line x1="6" y1="12" x2="10" y2="12"/></svg>
+            Filtrar
+            <span id="taskFilterCnt" style="background:var(--accent);color:white;border-radius:99px;width:16px;height:16px;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center">0</span>
+          </button>
+          <button class="pill-btn" onclick="oAddTask()">+ Nueva</button>
         </div>
       </div>
+      <div id="taskActiveFilters" style="display:flex;gap:6px;padding:0 20px 4px;overflow-x:auto;scrollbar-width:none"></div>
       <div class="tasks-wrap" id="tasksList"></div>
     </div>
 
@@ -493,7 +499,7 @@ input,select,textarea{font-size:16px !important}
     <div class="bs-body">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="tTi" placeholder="Ej: Parcial de Operaciones"></div>
       <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label><input class="bs-input" type="date" id="tFe"></div>
-      <div class="bs-field"><label class="bs-label">Detalle</label><input class="bs-input" id="tDe" placeholder="Opcional"></div>
+      <div class="bs-field"><label class="bs-label">Detalle <span style="font-weight:400;color:var(--text3);font-size:10px">— us\u00e1 # para etiquetar</span></label><input class="bs-input" id="tDe" placeholder="Opcional · Ej: estudiar cap 4 #estudio"></div>
       <div class="bs-field"><label class="bs-label">Categor&iacute;a</label>
         <select class="bs-select" id="tCa"><option>Personal</option><option>Facultad</option><option>Trabajo</option><option>Emprendimiento</option></select>
       </div>
@@ -511,7 +517,7 @@ input,select,textarea{font-size:16px !important}
       <input type="hidden" id="etId">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="etTi" placeholder="T&iacute;tulo"></div>
       <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label><input class="bs-input" type="date" id="etFe"></div>
-      <div class="bs-field"><label class="bs-label">Detalle</label><input class="bs-input" id="etDe" placeholder="Opcional"></div>
+      <div class="bs-field"><label class="bs-label">Detalle <span style="font-weight:400;color:var(--text3);font-size:10px">— us\u00e1 # para etiquetar</span></label><input class="bs-input" id="etDe" placeholder="Opcional · Ej: preparar material #estudio"></div>
       <div class="bs-field"><label class="bs-label">Categor&iacute;a</label>
         <select class="bs-select" id="etCa"><option>Personal</option><option>Facultad</option><option>Trabajo</option><option>Emprendimiento</option></select>
       </div>
@@ -622,6 +628,7 @@ input,select,textarea{font-size:16px !important}
       <input type="hidden" id="kbId">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="kbTi" placeholder="Ej: Preparar presentaci&oacute;n"></div>
       <div class="bs-field"><label class="bs-label">Descripci&oacute;n</label><input class="bs-input" id="kbDe" placeholder="Opcional"></div>
+      <div class="bs-field"><label class="bs-label">Fecha de vencimiento</label><input type="date" class="bs-input" id="kbFe"></div>
       <div class="bs-field"><label class="bs-label">Estado</label>
         <select class="bs-select" id="kbSt">
           <option value="todo">Por hacer</option>
@@ -630,6 +637,31 @@ input,select,textarea{font-size:16px !important}
         </select>
       </div>
       <button class="bs-submit" id="kbSubmit" onclick="sKanban()">Agregar tarea</button>
+    </div>
+  </div>
+</div>
+
+<!-- TASK FILTER SHEET -->
+<div class="bs-overlay" id="bsTaskFilter" onclick="if(event.target===this)closeBs('bsTaskFilter')">
+  <div class="bs" style="max-height:70vh">
+    <div class="bs-handle"></div>
+    <div class="bs-header">
+      <div class="bs-title">Filtrar actividades</div>
+      <button class="bs-close" onclick="closeBs('bsTaskFilter')">&#x2715;</button>
+    </div>
+    <div class="bs-body" style="gap:18px">
+      <div>
+        <div class="bs-label">Categor&iacute;a</div>
+        <div id="tfCatChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+      </div>
+      <div>
+        <div class="bs-label">Hashtags</div>
+        <div id="tfHashChips" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button onclick="clearTaskFilters()" style="flex:1;padding:16px;background:none;border:2px solid var(--border);border-radius:14px;font-family:var(--f);font-size:15px;font-weight:600;cursor:pointer;color:var(--text2)">Limpiar</button>
+        <button onclick="applyTaskFilters()" style="flex:2;padding:16px;background:var(--accent);color:white;border:none;border-radius:14px;font-family:var(--f);font-size:15px;font-weight:700;cursor:pointer">Aplicar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -652,6 +684,11 @@ input,select,textarea{font-size:16px !important}
           <button class="estado-pill" id="kbPillDoing" onclick="setKbEstado('doing')"><span style="width:8px;height:8px;border-radius:50%;background:#3B82F6;display:inline-block"></span>En progreso</button>
           <button class="estado-pill" id="kbPillDone" onclick="setKbEstado('done')"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block"></span>Hecho</button>
         </div>
+      </div>
+      <!-- Fecha de vencimiento -->
+      <div class="bs-field">
+        <label class="bs-label">Fecha de vencimiento</label>
+        <input type="date" class="bs-input" id="kbDetailFecha">
       </div>
       <!-- Progreso -->
       <div id="kbDetailProgress" style="background:var(--bg2);border-radius:14px;padding:14px 16px;display:none">
@@ -1210,12 +1247,18 @@ function dayActUHol(){
 // \u2500\u2500 TASKS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function rTasks(){
   var cont=document.getElementById('tasksList');
-  var tasks=S.tasks.slice().sort(function(a,b){
+  var tasks=S.tasks.slice().filter(function(t){
+    var catOk=taskActiveCats.size===0||taskActiveCats.has(t.categoria||'Personal');
+    var tags=extractTags(t.detalle);
+    var hashOk=taskActiveHashes.size===0||Array.from(taskActiveHashes).some(function(h){return tags.includes(h);});
+    return catOk&&hashOk;
+  }).sort(function(a,b){
     if(a.completada&&!b.completada)return 1;if(!a.completada&&b.completada)return -1;
     return new Date(a.fecha_limite||'9999')-new Date(b.fecha_limite||'9999');
   });
   if(!tasks.length){
-    cont.innerHTML='<div class="tasks-empty"><div style="font-size:32px;opacity:.3">&#x1F4CB;</div><div style="font-size:14px;color:var(--text2);font-weight:500;margin-top:4px">Sin actividades</div></div>';
+    var msg=taskActiveCats.size+taskActiveHashes.size>0?'Sin resultados para los filtros aplicados':'Sin actividades';
+    cont.innerHTML='<div class="tasks-empty"><div style="font-size:32px;opacity:.3">&#x1F4CB;</div><div style="font-size:14px;color:var(--text2);font-weight:500;margin-top:4px">'+msg+'</div></div>';
     return;
   }
   cont.innerHTML='';
@@ -1736,8 +1779,38 @@ function kbGetProgress(k) {
 
 function rBoard() { rKbCards(); }
 
+function kbFmtFecha(ds) {
+  if (!ds) return '';
+  var MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var p = ds.split('-');
+  return parseInt(p[2])+' '+MONTHS[parseInt(p[1])-1];
+}
+
+function kbDias(ds) {
+  if (!ds) return null;
+  var t = new Date(); t.setHours(0,0,0,0);
+  return Math.round((new Date(ds+'T00:00:00') - t) / 86400000);
+}
+
+function kbUrgStyle(ds) {
+  var d = kbDias(ds);
+  if (d === null) return '';
+  if (d < 0)  return 'color:#DC2626;font-weight:600';
+  if (d === 0) return 'color:var(--accent);font-weight:600';
+  if (d <= 3)  return 'color:#D97706;font-weight:600';
+  return 'color:var(--text3)';
+}
+
+function kbUrgLabel(ds) {
+  var d = kbDias(ds);
+  if (d === null) return '';
+  if (d < 0)  return 'Vencida hace '+(Math.abs(d))+' d\u00EDa'+(Math.abs(d)>1?'s':'');
+  if (d === 0) return 'Vence hoy';
+  if (d === 1) return 'Vence ma\u00F1ana';
+  return 'Vence el '+kbFmtFecha(ds);
+}
+
 function rKbCards() {
-  // Contadores
   ['todo','doing','done'].forEach(function(st,i){
     var el = document.getElementById('kbTabCnt'+i);
     if (el) el.textContent = S.kanban.filter(function(k){ return k.estado===st; }).length;
@@ -1745,7 +1818,16 @@ function rKbCards() {
 
   var list = document.getElementById('kbCardList');
   if (!list) return;
-  var filtered = S.kanban.filter(function(k){ return k.estado===kbCurrentTab; });
+
+  // Ordenar por fecha de vencimiento (sin fecha al final)
+  var filtered = S.kanban.filter(function(k){ return k.estado===kbCurrentTab; })
+    .sort(function(a,b){
+      if (!a.fecha_vencimiento && !b.fecha_vencimiento) return 0;
+      if (!a.fecha_vencimiento) return 1;
+      if (!b.fecha_vencimiento) return -1;
+      return new Date(a.fecha_vencimiento) - new Date(b.fecha_vencimiento);
+    });
+
   var st = KB_STATUS[kbCurrentTab];
   list.innerHTML = '';
 
@@ -1770,6 +1852,13 @@ function rKbCards() {
         +'</div>';
     }
 
+    // Fecha de vencimiento en la tarjeta
+    var fechaHTML = k.fecha_vencimiento
+      ? '<div style="font-size:12px;'+kbUrgStyle(k.fecha_vencimiento)+';margin-top:8px;display:flex;align-items:center;gap:4px">'
+        +'<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>'
+        + kbUrgLabel(k.fecha_vencimiento)+'</div>'
+      : '';
+
     card.innerHTML =
       '<div class="kb-card-top">'
       +'<div class="kb-card-title">'+k.titulo+'</div>'
@@ -1777,14 +1866,10 @@ function rKbCards() {
       +'</div>'
       +(k.descripcion?'<div class="kb-card-desc">'+k.descripcion+'</div>':'')
       + progressHTML
-      +'<div class="kb-card-footer">'
-      +'<div class="kb-card-status"><span class="kb-card-status-dot" style="background:'+st.dot+'"></span>'+st.label+'</div>'
-      +'</div>';
+      + fechaHTML;
 
-    // Events
     card.addEventListener('click', function(){ openKbDetail(k.id); });
     card.querySelector('.kb-card-del').addEventListener('click',function(e){ e.stopPropagation(); delKanban(k.id); });
-
     list.appendChild(card);
   });
 }
@@ -1812,7 +1897,7 @@ function openKbDetail(id) {
   document.getElementById('kbDetailId').value = k.id;
   document.getElementById('kbDetailTitle').textContent = k.titulo;
   document.getElementById('kbDetailDesc').value = k.descripcion || '';
-  // Estado pills
+  document.getElementById('kbDetailFecha').value = k.fecha_vencimiento || '';
   ['todo','doing','done'].forEach(function(st){
     var pill = document.getElementById('kbPill'+st.charAt(0).toUpperCase()+st.slice(1));
     if (pill) { pill.className='estado-pill'; if(k.estado===st) pill.classList.add('ap-'+st); }
@@ -1906,10 +1991,12 @@ function addKbSubtask() {
 function saveKbDetail() {
   var id = document.getElementById('kbDetailId').value;
   var de = document.getElementById('kbDetailDesc').value.trim();
+  var fe = document.getElementById('kbDetailFecha').value || '';
   var k = S.kanban.find(function(k){ return k.id===id; });
   if (!k) return;
   k.descripcion = de;
-  sbPatch('kanban', id, {descripcion:de, subtasks:JSON.stringify(k.subtasks||[])})
+  k.fecha_vencimiento = fe;
+  sbPatch('kanban', id, {descripcion:de, fecha_vencimiento:fe, subtasks:JSON.stringify(k.subtasks||[])})
     .then(function(){ toast('Guardado','ok'); closeKbDetail(); });
 }
 
@@ -1927,6 +2014,7 @@ function oAddKanban() {
   document.getElementById('kbId').value = '';
   document.getElementById('kbTi').value = '';
   document.getElementById('kbDe').value = '';
+  document.getElementById('kbFe').value = '';
   document.getElementById('kbSt').value = kbCurrentTab;
   document.querySelector('#bsKanban .bs-title').textContent = 'Nueva tarea';
   document.getElementById('kbSubmit').textContent = 'Agregar tarea';
@@ -1941,22 +2029,126 @@ function sKanban() {
   var id = document.getElementById('kbId').value;
   var ti = document.getElementById('kbTi').value.trim();
   var de = document.getElementById('kbDe').value.trim();
+  var fe = document.getElementById('kbFe').value || '';
   var st = document.getElementById('kbSt').value;
   if (!ti) { toast('Escrib\u00ED el t\u00EDtulo','er'); return; }
   closeBs('bsKanban');
   if (id) {
     var k = S.kanban.find(function(k){ return k.id===id; });
-    if (k) { k.titulo=ti; k.descripcion=de; k.estado=st; }
+    if (k) { k.titulo=ti; k.descripcion=de; k.estado=st; k.fecha_vencimiento=fe; }
     rBoard();
-    sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st}).then(function(){ toast('Actualizada','ok'); });
+    sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe}).then(function(){ toast('Actualizada','ok'); });
   } else {
     var newId = 'k'+Date.now();
-    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length, subtasks:[]};
+    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length, subtasks:[]};
     S.kanban.push(newK);
     rBoard();
-    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, orden:S.kanban.length-1})
+    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length-1})
       .then(function(){ toast('Tarea agregada','ok'); });
   }
+}
+
+// \u2500\u2500 TASK FILTERS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+var taskActiveCats = new Set();
+var taskActiveHashes = new Set();
+var taskPendingCats = new Set();
+var taskPendingHashes = new Set();
+
+function extractTags(str) {
+  return ((str||'').match(/#[\w\u00C0-\u017E]+/g)||[]).map(function(m){ return m.toLowerCase(); });
+}
+
+function getAllTaskTags() {
+  var s = new Set();
+  S.tasks.forEach(function(t){ extractTags(t.detalle).forEach(function(h){ s.add(h); }); });
+  return Array.from(s).sort();
+}
+
+function openTaskFilter() {
+  taskPendingCats = new Set(taskActiveCats);
+  taskPendingHashes = new Set(taskActiveHashes);
+  var CATS = ['Personal','Facultad','Trabajo','Emprendimiento'];
+  var CAT_COLORS = {'Personal':'#7C3AED','Facultad':'#1D4ED8','Trabajo':'#047857','Emprendimiento':'#B45309'};
+
+  // Categor\u00EDas
+  var cc = document.getElementById('tfCatChips'); cc.innerHTML='';
+  CATS.forEach(function(cat){
+    var chip = document.createElement('button');
+    chip.style.cssText = 'padding:9px 16px;border-radius:99px;border:2px solid '+(taskPendingCats.has(cat)?'var(--accent)':'var(--border)')+';background:'+(taskPendingCats.has(cat)?'var(--accentbg)':'none')+';font-family:var(--f);font-size:13px;font-weight:500;cursor:pointer;color:'+(taskPendingCats.has(cat)?'var(--accent)':'var(--text2)')+';display:flex;align-items:center;gap:6px';
+    chip.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+CAT_COLORS[cat]+';display:inline-block"></span>'+cat;
+    chip.addEventListener('click', function(){
+      if(taskPendingCats.has(cat)){ taskPendingCats.delete(cat); chip.style.borderColor='var(--border)'; chip.style.background='none'; chip.style.color='var(--text2)'; }
+      else { taskPendingCats.add(cat); chip.style.borderColor='var(--accent)'; chip.style.background='var(--accentbg)'; chip.style.color='var(--accent)'; }
+    });
+    cc.appendChild(chip);
+  });
+
+  // Hashtags
+  var hc = document.getElementById('tfHashChips'); hc.innerHTML='';
+  var tags = getAllTaskTags();
+  if(!tags.length){
+    hc.innerHTML='<div style="font-size:13px;color:var(--text3);font-style:italic">Todav\u00EDa no hay hashtags. Agr\u00E9galos en el campo de detalle con #.</div>';
+  } else {
+    tags.forEach(function(tag){
+      var chip = document.createElement('button');
+      var sel = taskPendingHashes.has(tag);
+      chip.style.cssText='padding:9px 16px;border-radius:99px;border:2px solid '+(sel?'#7C3AED':'var(--border)')+';background:'+(sel?'#EDE9FE':'none')+';font-family:var(--f);font-size:13px;font-weight:500;cursor:pointer;color:'+(sel?'#6D28D9':'var(--text2)');
+      chip.textContent=tag;
+      chip.addEventListener('click',function(){
+        if(taskPendingHashes.has(tag)){ taskPendingHashes.delete(tag); chip.style.borderColor='var(--border)'; chip.style.background='none'; chip.style.color='var(--text2)'; }
+        else { taskPendingHashes.add(tag); chip.style.borderColor='#7C3AED'; chip.style.background='#EDE9FE'; chip.style.color='#6D28D9'; }
+      });
+      hc.appendChild(chip);
+    });
+  }
+  openBs('bsTaskFilter');
+}
+
+function applyTaskFilters() {
+  taskActiveCats = new Set(taskPendingCats);
+  taskActiveHashes = new Set(taskPendingHashes);
+  closeBs('bsTaskFilter');
+  rTasks();
+  updateTaskFilterBtn();
+}
+
+function clearTaskFilters() {
+  taskActiveCats = new Set(); taskActiveHashes = new Set();
+  taskPendingCats = new Set(); taskPendingHashes = new Set();
+  closeBs('bsTaskFilter');
+  rTasks();
+  updateTaskFilterBtn();
+}
+
+function updateTaskFilterBtn() {
+  var n = taskActiveCats.size + taskActiveHashes.size;
+  var btn = document.getElementById('taskFilterBtn');
+  var cnt = document.getElementById('taskFilterCnt');
+  if (!btn||!cnt) return;
+  btn.style.background = n>0 ? 'var(--accentbg)' : 'var(--surface)';
+  btn.style.borderColor = n>0 ? 'var(--accent3)' : 'var(--border)';
+  btn.style.color = n>0 ? 'var(--accent)' : 'var(--text2)';
+  cnt.style.display = n>0 ? 'flex' : 'none';
+  cnt.textContent = n;
+
+  // Chips activos
+  var fc = document.getElementById('taskActiveFilters');
+  if (!fc) return;
+  fc.innerHTML='';
+  taskActiveCats.forEach(function(cat){
+    var c=document.createElement('div');
+    c.style.cssText='display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--accentbg);color:var(--accent);border:1px solid var(--accent3);white-space:nowrap;cursor:pointer;flex-shrink:0';
+    c.innerHTML=cat+' <span style="opacity:.7">&#x2715;</span>';
+    c.addEventListener('click',function(){ taskActiveCats.delete(cat); rTasks(); updateTaskFilterBtn(); });
+    fc.appendChild(c);
+  });
+  taskActiveHashes.forEach(function(h){
+    var c=document.createElement('div');
+    c.style.cssText='display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600;background:#EDE9FE;color:#6D28D9;border:1px solid #C4B5FD;white-space:nowrap;cursor:pointer;flex-shrink:0';
+    c.innerHTML=h+' <span style="opacity:.7">&#x2715;</span>';
+    c.addEventListener('click',function(){ taskActiveHashes.delete(h); rTasks(); updateTaskFilterBtn(); });
+    fc.appendChild(c);
+  });
 }
 
 // \u2500\u2500 TOAST \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
