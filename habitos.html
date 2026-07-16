@@ -912,6 +912,118 @@ function startApp() {
   initData();
 }
 
+// \u2500\u2500 SUPABASE REALTIME \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+var realtimeSocket = null;
+var realtimeHeartbeat = null;
+var realtimeReconnectTimer = null;
+
+function initRealtime() {
+  if (realtimeSocket) { realtimeSocket.close(); realtimeSocket = null; }
+  if (realtimeHeartbeat) { clearInterval(realtimeHeartbeat); }
+
+  var wsUrl = SB_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SB_KEY + '&vsn=1.0.0';
+  var ws = new WebSocket(wsUrl);
+  realtimeSocket = ws;
+
+  ws.onopen = function() {
+    console.log('Realtime conectado');
+    // Suscribir a cambios en todas las tablas relevantes
+    ['habits','log','tasks','kanban','holidays'].forEach(function(table) {
+      ws.send(JSON.stringify({
+        topic: 'realtime:public:'+table,
+        event: 'phx_join',
+        payload: { config: { broadcast: { self: false }, presence: { key: '' } } },
+        ref: table
+      }));
+    });
+    // Heartbeat cada 25 segundos para mantener la conexi\u00F3n viva
+    realtimeHeartbeat = setInterval(function() {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: 'hb' }));
+      }
+    }, 25000);
+  };
+
+  ws.onmessage = function(event) {
+    try {
+      var msg = JSON.parse(event.data);
+      if (!msg.payload || !msg.payload.data) return;
+      var data = msg.payload.data;
+      var table = data.table;
+      var type  = data.type; // INSERT, UPDATE, DELETE
+      var record = data.record;
+      var oldRecord = data.old_record;
+
+      // Actualizar S seg\u00FAn el cambio recibido
+      switch(table) {
+        case 'habits':
+          if (type==='INSERT') { if(!S.habits.find(function(h){return h.id===record.id;})) S.habits.push(record); }
+          else if (type==='UPDATE') { var i=S.habits.findIndex(function(h){return h.id===record.id;}); if(i>=0) S.habits[i]=record; }
+          else if (type==='DELETE') { S.habits=S.habits.filter(function(h){return h.id!==oldRecord.id;}); }
+          S.habits.sort(function(a,b){ return (Number(a.orden)||0)-(Number(b.orden)||0); });
+          var hl=document.getElementById('habitList'); if(hl) hl.innerHTML='';
+          rHoy(); rStats();
+          break;
+
+        case 'log':
+          if (type==='INSERT') { if(!S.log.find(function(l){return l.id===record.id;})) S.log.push(record); }
+          else if (type==='DELETE') { S.log=S.log.filter(function(l){return l.id!==oldRecord.id;}); }
+          bIdx(); rHoy(); rCal(); rStats();
+          break;
+
+        case 'tasks':
+          if (type==='INSERT') {
+            if(!S.tasks.find(function(t){return t.id===record.id;})) S.tasks.push(record);
+          } else if (type==='UPDATE') {
+            var ti=S.tasks.findIndex(function(t){return t.id===record.id;}); if(ti>=0) S.tasks[ti]=record;
+          } else if (type==='DELETE') {
+            S.tasks=S.tasks.filter(function(t){return t.id!==oldRecord.id;});
+          }
+          bIdx(); rTasks(); rCal();
+          break;
+
+        case 'kanban':
+          if (type==='INSERT') {
+            var k=record;
+            if(typeof k.subtasks==='string'){try{k.subtasks=JSON.parse(k.subtasks);}catch(e){k.subtasks=[];}}
+            if(!Array.isArray(k.subtasks))k.subtasks=[];
+            if(!S.kanban.find(function(x){return x.id===k.id;})) S.kanban.push(k);
+          } else if (type==='UPDATE') {
+            var ki=S.kanban.findIndex(function(x){return x.id===record.id;});
+            if(ki>=0){
+              var kr=record;
+              if(typeof kr.subtasks==='string'){try{kr.subtasks=JSON.parse(kr.subtasks);}catch(e){kr.subtasks=[];}}
+              if(!Array.isArray(kr.subtasks))kr.subtasks=[];
+              S.kanban[ki]=kr;
+            }
+          } else if (type==='DELETE') {
+            S.kanban=S.kanban.filter(function(x){return x.id!==oldRecord.id;});
+          }
+          rBoard();
+          break;
+
+        case 'holidays':
+          if (type==='INSERT') { if(!S.holidays.find(function(h){return h.fecha===record.fecha;})) S.holidays.push(record); }
+          else if (type==='DELETE') { S.holidays=S.holidays.filter(function(h){return h.fecha!==oldRecord.fecha;}); }
+          rCal(); rHoy();
+          break;
+      }
+    } catch(e) { /* ignorar mensajes mal formados */ }
+  };
+
+  ws.onerror = function() { console.log('Realtime error'); };
+
+  ws.onclose = function() {
+    console.log('Realtime desconectado \u2014 reconectando en 5s...');
+    clearInterval(realtimeHeartbeat);
+    realtimeSocket = null;
+    // Reconectar autom\u00E1ticamente
+    realtimeReconnectTimer = setTimeout(function() {
+      if (gToken) initRealtime();
+    }, 5000);
+  };
+}
+
 // \u2500\u2500 SUPABASE CONFIG \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 var SB_URL  = 'https://heyvxsfgezzvqdjmieck.supabase.co';
 var SB_KEY  = 'sb_publishable_InmorvQIkva0UqXSYYFBNQ_cETl8XCA';
@@ -1033,7 +1145,10 @@ function initData() {
     }, 420);
     rAll();
     new ResizeObserver(rChart).observe(document.getElementById('wc').parentElement);
-    // Sincronizar Calendar \u2014 reimporta los que se limpiaron
+    // Iniciar sincronizaci\u00F3n en tiempo real entre dispositivos
+    setTimeout(initRealtime, 500);
+    // Sincronizar Calendar en background
+    setTimeout(syncCalendar, 1500);
   }).catch(function(e){
     var ls = document.getElementById('ls');
     ls.querySelector('.ls-text').textContent = 'Error: ' + e.message;
