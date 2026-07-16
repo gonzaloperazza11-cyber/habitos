@@ -871,6 +871,10 @@ function mW(y,m){ var wks=[],dim=new Date(y,m+1,0).getDate(),firstDow=new Date(y
 var S = { habits:[], log:[], tasks:[], holidays:[], sel:null, vY:0, vM:0, pDay:null };
 var TODAY = fmt(new Date());
 var IDX = { byDate:{}, byHabitDate:{}, taskByDate:{} };
+var taskActiveCats = new Set();
+var taskActiveHashes = new Set();
+var taskPendingCats = new Set();
+var taskPendingHashes = new Set();
 
 // \u2500\u2500 INIT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 document.addEventListener('DOMContentLoaded', function() {
@@ -2049,10 +2053,6 @@ function sKanban() {
 }
 
 // \u2500\u2500 TASK FILTERS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-var taskActiveCats = new Set();
-var taskActiveHashes = new Set();
-var taskPendingCats = new Set();
-var taskPendingHashes = new Set();
 
 function extractTags(str) {
   return ((str||'').match(/#[\w\u00C0-\u017E]+/g)||[]).map(function(m){ return m.toLowerCase(); });
