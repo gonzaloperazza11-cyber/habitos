@@ -1002,7 +1002,14 @@ function initData() {
     }
     S.log      = results[1] || [];
     S.holidays = results[3] || [];
-    S.kanban   = results[4] || [];
+    S.kanban   = (results[4] || []).map(function(k) {
+      // Parsear subtasks que viene como string JSON de Supabase
+      if (typeof k.subtasks === 'string') {
+        try { k.subtasks = JSON.parse(k.subtasks); } catch(e) { k.subtasks = []; }
+      }
+      if (!Array.isArray(k.subtasks)) k.subtasks = [];
+      return k;
+    });
 
     var rawTasks = results[2] || [];
     var badTasks = rawTasks.filter(function(t){
@@ -1971,7 +1978,13 @@ function delKanban(id) {
 function openKbDetail(id) {
   var k = S.kanban.find(function(k){ return k.id===id; });
   if (!k) return;
-  if (!k.subtasks) k.subtasks = [];
+
+  // Parsear subtasks si viene como string de Supabase
+  if (typeof k.subtasks === 'string') {
+    try { k.subtasks = JSON.parse(k.subtasks); } catch(e) { k.subtasks = []; }
+  }
+  if (!Array.isArray(k.subtasks)) k.subtasks = [];
+
   document.getElementById('kbDetailId').value = k.id;
   document.getElementById('kbDetailTitle').textContent = k.titulo;
   document.getElementById('kbDetailDesc').value = k.descripcion || '';
@@ -2038,9 +2051,19 @@ function renderKbSubtasks(k) {
       +'<button class="subtask-del">&#x2715;</button>';
     item.querySelector('.subtask-check').addEventListener('click',function(){
       s.done = !s.done;
-      var id = document.getElementById('kbDetailId').value;
-      var k2 = S.kanban.find(function(k){ return k.id===id; });
-      if (k2) { renderKbSubtasks(k2); sbPatch('kanban',id,{subtasks:JSON.stringify(k2.subtasks)}); }
+      var kid = document.getElementById('kbDetailId').value;
+      var k2 = S.kanban.find(function(k){ return k.id===kid; });
+      if (!k2) return;
+      renderKbSubtasks(k2);
+      // Guardar en Supabase
+      try {
+        var str = JSON.stringify(k2.subtasks);
+        fetch(SB_URL+'/rest/v1/kanban?id=eq.'+kid, {
+          method:'PATCH',
+          headers:Object.assign({},SB_HDRS,{'Prefer':'return=minimal'}),
+          body:JSON.stringify({subtasks:str})
+        });
+      } catch(e) {}
     });
     var inp = item.querySelector('.subtask-input');
     inp.addEventListener('blur',function(){
@@ -2072,20 +2095,63 @@ function addKbSubtask() {
 
 function saveKbDetail() {
   var id = document.getElementById('kbDetailId').value;
+  if (!id) { toast('Error: sin ID de tarea','er'); return; }
+
   var de = document.getElementById('kbDetailDesc').value.trim();
   var fe = document.getElementById('kbDetailFecha').value || '';
   var k = S.kanban.find(function(k){ return k.id===id; });
-  if (!k) return;
+  if (!k) { toast('Tarea no encontrada','er'); return; }
+
+  // Asegurar que las subtareas editadas en los inputs est\u00E9n guardadas en memoria
+  var subInputs = document.querySelectorAll('#kbSubtasksList .subtask-input');
+  subInputs.forEach(function(inp, i) {
+    if (k.subtasks && k.subtasks[i]) {
+      k.subtasks[i].texto = inp.value.trim() || k.subtasks[i].texto;
+    }
+  });
+
+  // Actualizar en memoria
   k.descripcion = de;
   k.fecha_vencimiento = fe;
-  sbPatch('kanban', id, {descripcion:de, fecha_vencimiento:fe, subtasks:JSON.stringify(k.subtasks||[])})
-    .then(function(){
-      toast('Guardado','ok');
-      closeKbDetail();
-      // Sincronizar con Google Tasks si tiene gtask_id
+
+  // Serializar subtareas de forma segura
+  var subtasksStr = '[]';
+  try {
+    subtasksStr = JSON.stringify(k.subtasks || []);
+  } catch(e) {
+    subtasksStr = '[]';
+  }
+
+  var payload = {
+    descripcion: de,
+    fecha_vencimiento: fe,
+    subtasks: subtasksStr
+  };
+
+  sbPatch('kanban', id, payload)
+    .then(function(res) {
+      // Supabase devuelve [] cuando no hay filas afectadas \u2014 verificar
+      if (Array.isArray(res) && res.length === 0) {
+        // Intentar con upsert como fallback
+        return fetch(SB_URL+'/rest/v1/kanban?id=eq.'+id, {
+          method: 'PATCH',
+          headers: Object.assign({}, SB_HDRS, {'Prefer':'return=minimal'}),
+          body: JSON.stringify(payload)
+        });
+      }
+      return res;
+    })
+    .then(function() {
+      toast('Guardado \u2713','ok');
+      // Sincronizar fecha con Google Tasks si tiene gtask_id
       if (k.gtask_id) {
         gtaskUpdate(k.gtask_id, k.titulo, k.estado, fe).catch(function(){});
       }
+      closeKbDetail();
+    })
+    .catch(function(err) {
+      console.error('saveKbDetail error:', err);
+      toast('Error al guardar','er');
     });
 }
 
