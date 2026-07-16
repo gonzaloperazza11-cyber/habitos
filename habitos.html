@@ -727,9 +727,83 @@ input,select,textarea{font-size:16px !important}
 <script>
 // \u2500\u2500 GOOGLE OAUTH + CALENDAR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 var GCLIENT_ID = '877560216673-cn4of9s2hj0u885aaluefo1201krljsr.apps.googleusercontent.com';
-var GSCOPES    = 'https://www.googleapis.com/auth/calendar openid profile email';
+var GSCOPES    = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks openid profile email';
 var CAL_ID     = 'primary';
 var gToken     = null;
+var gTaskListId = null; // ID de la lista "Tablero" en Google Tasks
+
+// \u2500\u2500 GOOGLE TASKS API \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function tasksApiCall(method, path, body) {
+  return getCalToken().then(function(token) {
+    if (!token) return null;
+    var opts = {
+      method: method,
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' }
+    };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch('https://tasks.googleapis.com/tasks/v1/'+path, opts)
+      .then(function(r){
+        if (r.status===204||r.status===200&&method==='DELETE') return true;
+        if (!r.ok) return null;
+        return r.json().then(function(d){ return d.error?null:d; });
+      });
+  }).catch(function(){ return null; });
+}
+
+// Obtener o crear la lista "Tablero"
+function ensureTaskList() {
+  if (gTaskListId) return Promise.resolve(gTaskListId);
+  return tasksApiCall('GET','users/@me/lists').then(function(res){
+    if (!res||!res.items) return null;
+    var existing = res.items.find(function(l){ return l.title==='Tablero'; });
+    if (existing) { gTaskListId=existing.id; return gTaskListId; }
+    // Crear la lista si no existe
+    return tasksApiCall('POST','users/@me/lists',{title:'Tablero'}).then(function(l){
+      if (!l) return null;
+      gTaskListId=l.id; return gTaskListId;
+    });
+  });
+}
+
+// Estado del tablero \u2192 Google Tasks status
+function kbEstadoToGtask(estado) {
+  return estado==='done' ? 'completed' : 'needsAction';
+}
+
+// Crear tarea en Google Tasks
+function gtaskCreate(titulo, estado, fecha_vencimiento) {
+  return ensureTaskList().then(function(listId){
+    if (!listId) return null;
+    var prefix = estado==='doing' ? '[En progreso] ' : '';
+    var body = { title: prefix+titulo, status: kbEstadoToGtask(estado) };
+    if (fecha_vencimiento) body.due = fecha_vencimiento+'T00:00:00.000Z';
+    return tasksApiCall('POST','lists/'+listId+'/tasks',body).then(function(t){ return t?t.id:null; });
+  });
+}
+
+// Actualizar estado de tarea en Google Tasks
+function gtaskUpdate(gtaskId, titulo, estado, fecha_vencimiento) {
+  if (!gtaskId) return Promise.resolve(null);
+  return ensureTaskList().then(function(listId){
+    if (!listId) return null;
+    var prefix = estado==='doing' ? '[En progreso] ' : '';
+    var cleanTitle = titulo.replace(/^\[En progreso\] /,'');
+    var body = { title: prefix+cleanTitle, status: kbEstadoToGtask(estado) };
+    if (fecha_vencimiento) body.due = fecha_vencimiento+'T00:00:00.000Z';
+    // Si se completa, marcar con completed date
+    if (estado==='done') body.completed = new Date().toISOString();
+    return tasksApiCall('PATCH','lists/'+listId+'/tasks/'+gtaskId,body).then(function(t){ return t?t.id:null; });
+  });
+}
+
+// Eliminar tarea de Google Tasks
+function gtaskDelete(gtaskId) {
+  if (!gtaskId) return Promise.resolve(null);
+  return ensureTaskList().then(function(listId){
+    if (!listId) return null;
+    return tasksApiCall('DELETE','lists/'+listId+'/tasks/'+gtaskId,null);
+  });
+}
 
 var SESSION_KEY = 'habitos_user';
 
@@ -1931,6 +2005,10 @@ function setKbEstado(nuevoEstado) {
   });
   sbPatch('kanban', id, {estado: nuevoEstado});
   toast(KB_STATUS[nuevoEstado].label,'ok');
+  // Sincronizar estado con Google Tasks en background
+  if (k.gtask_id) {
+    gtaskUpdate(k.gtask_id, k.titulo, nuevoEstado, k.fecha_vencimiento||'').catch(function(){});
+  }
 }
 
 function renderKbSubtasks(k) {
@@ -2001,16 +2079,28 @@ function saveKbDetail() {
   k.descripcion = de;
   k.fecha_vencimiento = fe;
   sbPatch('kanban', id, {descripcion:de, fecha_vencimiento:fe, subtasks:JSON.stringify(k.subtasks||[])})
-    .then(function(){ toast('Guardado','ok'); closeKbDetail(); });
+    .then(function(){
+      toast('Guardado','ok');
+      closeKbDetail();
+      // Sincronizar con Google Tasks si tiene gtask_id
+      if (k.gtask_id) {
+        gtaskUpdate(k.gtask_id, k.titulo, k.estado, fe).catch(function(){});
+      }
+    });
 }
 
 function delKbFromDetail() {
   var id = document.getElementById('kbDetailId').value;
   if (!confirm('Eliminar esta tarea?')) return;
+  var k = S.kanban.find(function(k){ return k.id===id; });
   S.kanban = S.kanban.filter(function(k){ return k.id!==id; });
   closeKbDetail();
   sbDelete('kanban', id);
   toast('Eliminada','ok');
+  // Eliminar de Google Tasks en background
+  if (k && k.gtask_id) {
+    gtaskDelete(k.gtask_id).catch(function(){});
+  }
 }
 
 // \u2500\u2500 KANBAN CRUD (nueva tarea) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
@@ -2044,11 +2134,20 @@ function sKanban() {
     sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe}).then(function(){ toast('Actualizada','ok'); });
   } else {
     var newId = 'k'+Date.now();
-    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length, subtasks:[]};
+    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length, subtasks:[], gtask_id:''};
     S.kanban.push(newK);
     rBoard();
-    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length-1})
-      .then(function(){ toast('Tarea agregada','ok'); });
+    // Guardar en Supabase primero, luego crear en Google Tasks
+    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length-1, gtask_id:''})
+      .then(function(){
+        toast('Tarea agregada','ok');
+        // Crear en Google Tasks en background
+        gtaskCreate(ti, st, fe).then(function(gtaskId){
+          if (!gtaskId) return;
+          newK.gtask_id = gtaskId;
+          sbPatch('kanban', newId, {gtask_id: gtaskId}).catch(function(){});
+        });
+      });
   }
 }
 
