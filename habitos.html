@@ -2200,19 +2200,38 @@ function sKanban() {
     sbPatch('kanban', id, {titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe}).then(function(){ toast('Actualizada','ok'); });
   } else {
     var newId = 'k'+Date.now();
-    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length, subtasks:[], gtask_id:''};
+    var newK = {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length-1, subtasks:[], gtask_id:''};
     S.kanban.push(newK);
     rBoard();
-    // Guardar en Supabase primero, luego crear en Google Tasks
-    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length-1, gtask_id:''})
-      .then(function(){
-        toast('Tarea agregada','ok');
+    // Guardar en Supabase
+    sbPost('kanban', {id:newId, titulo:ti, descripcion:de, estado:st, fecha_vencimiento:fe, orden:S.kanban.length-1, gtask_id:'', subtasks:'[]'})
+      .then(function(res){
+        // Verificar si hubo error de Supabase
+        if (res && res.code) {
+          console.error('Supabase error al crear kanban:', res);
+          toast('Error al guardar en base de datos','er');
+          // Revertir de memoria
+          S.kanban = S.kanban.filter(function(k){ return k.id!==newId; });
+          rBoard();
+          return;
+        }
+        toast('Tarea agregada \u2713','ok');
         // Crear en Google Tasks en background
         gtaskCreate(ti, st, fe).then(function(gtaskId){
           if (!gtaskId) return;
           newK.gtask_id = gtaskId;
-          sbPatch('kanban', newId, {gtask_id: gtaskId}).catch(function(){});
-        });
+          fetch(SB_URL+'/rest/v1/kanban?id=eq.'+newId, {
+            method:'PATCH',
+            headers:Object.assign({},SB_HDRS,{'Prefer':'return=minimal'}),
+            body:JSON.stringify({gtask_id:gtaskId})
+          });
+        }).catch(function(){});
+      })
+      .catch(function(err){
+        console.error('Error guardando kanban:', err);
+        toast('Error de conexi\u00F3n','er');
+        S.kanban = S.kanban.filter(function(k){ return k.id!==newId; });
+        rBoard();
       });
   }
 }
