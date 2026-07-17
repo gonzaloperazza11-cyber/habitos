@@ -726,11 +726,45 @@ input,select,textarea{font-size:16px !important}
 
 <script>
 // \u2500\u2500 GOOGLE OAUTH + CALENDAR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-var GCLIENT_ID = '877560216673-cn4of9s2hj0u885aaluefo1201krljsr.apps.googleusercontent.com';
-var GSCOPES    = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks openid profile email';
-var CAL_ID     = 'primary';
-var gToken     = null;
-var gTaskListId = null; // ID de la lista "Tablero" en Google Tasks
+var GCLIENT_ID  = '877560216673-cn4of9s2hj0u885aaluefo1201krljsr.apps.googleusercontent.com';
+var GSCOPES     = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks openid profile email';
+var CAL_ID      = 'primary';
+var gToken      = null;
+var gTokenExpiry= 0;
+var gTaskListId = null;
+
+// Obtener token de Google v\u00E1lido \u2014 siempre fresco
+function getCalToken() {
+  // Si el token actual tiene m\u00E1s de 2 minutos de vida, usarlo directamente
+  if (gToken && Date.now() < gTokenExpiry - 120000) {
+    return Promise.resolve(gToken);
+  }
+  // Pedir token nuevo silenciosamente
+  return new Promise(function(resolve) {
+    try {
+      var client = google.accounts.oauth2.initTokenClient({
+        client_id: GCLIENT_ID,
+        scope: GSCOPES,
+        prompt: '',
+        callback: function(resp) {
+          if (resp && resp.access_token) {
+            gToken = resp.access_token;
+            gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+            resolve(gToken);
+          } else {
+            // Si falla silent refresh, devolver token actual aunque est\u00E9 por vencer
+            console.log('[getCalToken] silent refresh failed, using existing token');
+            resolve(gToken);
+          }
+        }
+      });
+      client.requestAccessToken();
+    } catch(e) {
+      console.log('[getCalToken] error:', e);
+      resolve(gToken); // usar token actual como fallback
+    }
+  });
+}
 
 // \u2500\u2500 GOOGLE TASKS API \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function tasksApiCall(method, path, body) {
@@ -1617,24 +1651,31 @@ function togT(id,val){
 }
 
 function calComplete(calId, titulo, completada) {
-  if (!calId) { console.log('[calComplete] no calId'); return Promise.resolve(null); }
-  var cleanTitle = (titulo||'').replace(/^(\u2705|\ud83d\udccc)\s*/, '').trim();
+  if (!calId) return Promise.resolve(null);
+  var cleanTitle = (titulo||'').replace(/^[\u2705\ud83d\udccc]\s*/, '').trim();
   var newSummary = (completada ? '\u2705 ' : '\ud83d\udccc ') + cleanTitle;
-  console.log('[calComplete] summary='+newSummary+' calId='+String(calId).slice(0,20));
-  return getCalToken().then(function(token){
-    if (!token) { console.log('[calComplete] no token - trying anyway'); }
-    var tok = token || gToken;
-    if (!tok) { console.log('[calComplete] no token at all'); return null; }
-    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+encodeURIComponent(calId),{
-      method:'PATCH',
-      headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
-      body:JSON.stringify({summary:newSummary})
-    }).then(function(r){
-      console.log('[calComplete] response status='+r.status);
-      if(!r.ok){ return r.text().then(function(b){ console.error('[calComplete] error:',b); }); }
-      return r.json();
+  return getCalToken().then(function(token) {
+    if (!token) { console.log('[calComplete] sin token'); return null; }
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+encodeURIComponent(calId), {
+      method: 'PATCH',
+      headers: { 'Authorization': 'Bearer '+token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ summary: newSummary })
+    }).then(function(r) {
+      if (r.status === 401) {
+        // Token inv\u00E1lido \u2014 limpiar y reintentar una vez
+        gToken = null; gTokenExpiry = 0;
+        return getCalToken().then(function(newToken) {
+          if (!newToken) return null;
+          return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+encodeURIComponent(calId), {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer '+newToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ summary: newSummary })
+          });
+        });
+      }
+      return r;
     });
-  }).catch(function(e){ console.error('[calComplete] catch:',e); });
+  }).catch(function(e) { console.log('[calComplete] error:', e); });
 }
 
 function delTaskBoard(id) {
