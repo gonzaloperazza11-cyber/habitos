@@ -1617,13 +1617,24 @@ function togT(id,val){
 }
 
 function calComplete(calId, titulo, completada) {
-  if (!calId) return Promise.resolve(null);
-  // Limpiar prefijos anteriores del t\u00EDtulo
-  var cleanTitle = (titulo||'').replace(/^[\u2705\u{1F4CC}\u{1F4CC}\s]+/u, '').trim();
+  if (!calId) { console.log('[calComplete] no calId'); return Promise.resolve(null); }
+  var cleanTitle = (titulo||'').replace(/^(\u2705|\ud83d\udccc)\s*/, '').trim();
   var newSummary = (completada ? '\u2705 ' : '\ud83d\udccc ') + cleanTitle;
-  return calApiCall('PATCH','events/'+encodeURIComponent(calId),{
-    summary: newSummary
-  });
+  console.log('[calComplete] summary='+newSummary+' calId='+String(calId).slice(0,20));
+  return getCalToken().then(function(token){
+    if (!token) { console.log('[calComplete] no token - trying anyway'); }
+    var tok = token || gToken;
+    if (!tok) { console.log('[calComplete] no token at all'); return null; }
+    return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/'+encodeURIComponent(calId),{
+      method:'PATCH',
+      headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify({summary:newSummary})
+    }).then(function(r){
+      console.log('[calComplete] response status='+r.status);
+      if(!r.ok){ return r.text().then(function(b){ console.error('[calComplete] error:',b); }); }
+      return r.json();
+    });
+  }).catch(function(e){ console.error('[calComplete] catch:',e); });
 }
 
 function delTaskBoard(id) {
