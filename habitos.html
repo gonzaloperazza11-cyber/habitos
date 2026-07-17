@@ -1035,13 +1035,41 @@ function sbGet(table, params) {
   return fetch(url, { headers: Object.assign({}, SB_HDRS, { 'Prefer': 'return=representation' }) }).then(function(r){ return r.json(); });
 }
 function sbPost(table, body) {
-  return fetch(SB_URL + '/rest/v1/' + table, { method: 'POST', headers: Object.assign({}, SB_HDRS, { 'Prefer': 'return=representation' }), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
+  return fetch(SB_URL + '/rest/v1/' + table, {
+    method: 'POST',
+    headers: Object.assign({}, SB_HDRS, { 'Prefer': 'return=representation' }),
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(txt) {
+        throw new Error('POST ' + table + ' ' + r.status + ': ' + txt);
+      });
+    }
+    return r.json();
+  });
 }
 function sbPatch(table, id, body) {
-  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + id, { method: 'PATCH', headers: Object.assign({}, SB_HDRS, { 'Prefer': 'return=representation' }), body: JSON.stringify(body) }).then(function(r){ return r.json(); });
+  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + id, {
+    method: 'PATCH',
+    headers: Object.assign({}, SB_HDRS, { 'Prefer': 'return=minimal' }),
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(txt) {
+        throw new Error('PATCH ' + table + ' ' + r.status + ': ' + txt);
+      });
+    }
+    return true; // return=minimal devuelve body vac\u00EDo en \u00E9xito
+  });
 }
 function sbDelete(table, id) {
-  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + id, { method: 'DELETE', headers: SB_HDRS });
+  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + id, {
+    method: 'DELETE',
+    headers: SB_HDRS
+  }).then(function(r) {
+    if (!r.ok) throw new Error('DELETE ' + table + ' ' + r.status);
+    return true;
+  });
 }
 
 // \u2500\u2500 DATE UTILS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
