@@ -1156,17 +1156,14 @@ function initData() {
 
     var rawTasks = results[2] || [];
 
-    // Detectar y eliminar tareas importadas del calendario
-    // Los IDs de Google Calendar contienen @ o tienen formato especial
-    // Los IDs propios de la app empiezan con 't' seguido de timestamp num\u00E9rico
+    // Eliminar solo tareas con datos inv\u00E1lidos o IDs de Google Calendar (contienen @)
+    // Los IDs de la app empiezan con 't' y pueden tener cualquier caracter despues
     var badTasks = rawTasks.filter(function(t){
       var tit = t.titulo, fec = t.fecha_limite;
       var invalidData = !tit || tit===null || String(tit).trim()==='' ||
                         String(tit)==='undefined' || String(tit)==='(sin t\u00EDtulo)' ||
                         !fec || fec===null || String(fec).trim()==='' || String(fec)==='undefined';
-      // ID de Google Calendar: contiene @, o no empieza con 't' seguido de d\u00EDgitos
-      var calendarId = t.id && (String(t.id).indexOf('@') !== -1 ||
-                       !/^t\d+/.test(String(t.id)));
+      var calendarId = t.id && String(t.id).indexOf('@') !== -1;
       return invalidData || calendarId;
     });
     var goodTasks = rawTasks.filter(function(t){
@@ -1174,13 +1171,12 @@ function initData() {
       var validData = tit && tit!==null && String(tit).trim()!=='' &&
                       String(tit)!=='undefined' && String(tit)!=='(sin t\u00EDtulo)' &&
                       fec && fec!==null && String(fec).trim()!=='' && String(fec)!=='undefined';
-      var appId = t.id && /^t\d+/.test(String(t.id));
-      return validData && appId;
+      var noCalendarId = !t.id || String(t.id).indexOf('@') === -1;
+      return validData && noCalendarId;
     });
 
-    // Eliminar las malas de Supabase en background
     if (badTasks.length > 0) {
-      console.log('Eliminando ' + badTasks.length + ' tarea(s) importada(s) del calendario');
+      console.log('Eliminando ' + badTasks.length + ' tarea(s) inv\u00E1lida(s)');
       badTasks.forEach(function(t){ sbDelete('tasks', t.id).catch(function(){}); });
     }
 
