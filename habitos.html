@@ -1600,17 +1600,28 @@ function syncTaskToCalendar(id) {
   });
 }
 function togT(id,val){
-  // Actualizar estado inmediatamente (optimista)
   var t=S.tasks.find(function(t){return t.id===id;});
+  // Actualizar UI inmediatamente (optimista)
   if(t){ t.completada=val; bIdx(); rTasks(); rBoard(); }
-  // Persistir en background
+  // Persistir en Supabase
   sbPatch('tasks',id,{completada:val}).then(function(){
-    if(t&&t.cal_event_id) calComplete(t.cal_event_id,t.titulo||'',val);
     toast(val?'Completada':'Reabierta','ok');
-  }).catch(function(){
-    // Revertir si falla
+    // Calendar en background \u2014 si falla no importa
+    if(t&&t.cal_event_id){
+      try{ calComplete(t.cal_event_id,t.titulo||'',val); }catch(e){}
+    }
+  }).catch(function(err){
+    console.error('togT error:',err);
+    // Revertir UI si falla Supabase
     if(t){ t.completada=!val; bIdx(); rTasks(); rBoard(); }
     toast('Error al guardar','er');
+  });
+}
+
+function calComplete(calId, titulo, completada) {
+  if (!calId) return Promise.resolve(null);
+  return calApiCall('PATCH','events/'+encodeURIComponent(calId),{
+    summary:(completada?'\u2705 ':'\ud83d\udccc ')+titulo
   });
 }
 
