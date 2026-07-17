@@ -1124,9 +1124,14 @@ function initData() {
     });
 
     var rawTasks = results[2] || [];
+
+    // Eliminar tareas inv\u00E1lidas Y tareas importadas del calendario que no fueron creadas desde la app
+    // Las tareas creadas desde la app tienen id que empieza con 't' + timestamp
+    // Las importadas del calendario tienen cal_event_id que NO contiene [HabitTracker]
     var badTasks = rawTasks.filter(function(t){
       var tit=t.titulo, fec=t.fecha_limite;
-      return !tit||tit===null||String(tit).trim()===''||String(tit)==='undefined'||String(tit)==='(sin t\u00EDtulo)'||!fec||fec===null||String(fec).trim()===''||String(fec)==='undefined';
+      var invalidData = !tit||tit===null||String(tit).trim()===''||String(tit)==='undefined'||String(tit)==='(sin t\u00EDtulo)'||!fec||fec===null||String(fec).trim()===''||String(fec)==='undefined';
+      return invalidData;
     });
     var goodTasks = rawTasks.filter(function(t){
       var tit=t.titulo, fec=t.fecha_limite;
@@ -1148,7 +1153,6 @@ function initData() {
     // Iniciar sincronizaci\u00F3n en tiempo real entre dispositivos
     setTimeout(initRealtime, 500);
     // Sincronizar Calendar en background
-    setTimeout(syncCalendar, 1500);
   }).catch(function(e){
     var ls = document.getElementById('ls');
     ls.querySelector('.ls-text').textContent = 'Error: ' + e.message;
@@ -1892,54 +1896,6 @@ function openBs(id){document.getElementById(id).classList.add('open');}
 function closeBs(id){document.getElementById(id).classList.remove('open');}
 
 // \u2500\u2500 CALENDAR SYNC \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function syncCalendar() {
-  if (!gToken) return;
-  var now   = new Date();
-  var start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  var end   = new Date(now.getFullYear(), now.getMonth()+2, 0, 23, 59, 59).toISOString();
-  fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events'
-    + '?timeMin=' + encodeURIComponent(start)
-    + '&timeMax=' + encodeURIComponent(end)
-    + '&singleEvents=true&orderBy=startTime&maxResults=200', {
-    headers: { 'Authorization': 'Bearer ' + gToken }
-  }).then(function(r){ return r.json(); }).then(function(data) {
-    var items = data.items || [];
-    var existingCalIds = {};
-    S.tasks.forEach(function(t){ if(t.cal_event_id) existingCalIds[t.cal_event_id]=true; });
-
-    var toImport = items.filter(function(ev) {
-      if (!ev.summary) return false;
-      if (existingCalIds[ev.id]) return false;
-      var desc = ev.description || '';
-      if (desc.indexOf('[HabitTracker]') !== -1) return false;
-      // Aceptar all-day y eventos con hora \u2014 extraer fecha
-      var fecha = (ev.start && (ev.start.date || (ev.start.dateTime && ev.start.dateTime.slice(0,10))));
-      if (!fecha) return false;
-      ev._fecha = fecha; // guardar para uso posterior
-      return true;
-    });
-
-    if (!toImport.length) { return; } // silencioso si no hay nada nuevo
-
-    var promises = toImport.map(function(ev) {
-      var id     = 't' + Date.now() + Math.random().toString(36).slice(2,6);
-      var titulo = ev.summary || 'Evento';
-      var fecha  = ev._fecha;
-      var detalle= (ev.description||'').slice(0,100);
-      return sbPost('tasks', {
-        id:id, titulo:titulo, fecha_limite:fecha,
-        detalle:detalle, categoria:'Personal', completada:false, cal_event_id:ev.id
-      }).then(function(r) {
-        var task = Array.isArray(r)?r[0]:r;
-        S.tasks.push(task||{id:id,titulo:titulo,fecha_limite:fecha,detalle:detalle,categoria:'Personal',completada:false,cal_event_id:ev.id});
-      });
-    });
-    Promise.all(promises).then(function() {
-      bIdx(); rTasks(); rBoard();
-      toast(toImport.length+' evento'+(toImport.length>1?'s':'')+' importado'+(toImport.length>1?'s':''),'ok');
-    });
-  }).catch(function(e){ console.log('Sync error:',e); });
-}
 
 // \u2500\u2500 KANBAN STATE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 S.kanban = [];
