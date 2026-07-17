@@ -1049,7 +1049,9 @@ function sbPost(table, body) {
   });
 }
 function sbPatch(table, id, body) {
-  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + id, {
+  // Encodear el ID para manejar IDs con caracteres especiales (@, ., etc)
+  var encodedId = encodeURIComponent(String(id));
+  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + encodedId, {
     method: 'PATCH',
     headers: Object.assign({}, SB_HDRS, { 'Prefer': 'return=minimal' }),
     body: JSON.stringify(body)
@@ -1059,11 +1061,12 @@ function sbPatch(table, id, body) {
         throw new Error('PATCH ' + table + ' ' + r.status + ': ' + txt);
       });
     }
-    return true; // return=minimal devuelve body vac\u00EDo en \u00E9xito
+    return true;
   });
 }
 function sbDelete(table, id) {
-  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + id, {
+  var encodedId = encodeURIComponent(String(id));
+  return fetch(SB_URL + '/rest/v1/' + table + '?id=eq.' + encodedId, {
     method: 'DELETE',
     headers: SB_HDRS
   }).then(function(r) {
@@ -1153,19 +1156,34 @@ function initData() {
 
     var rawTasks = results[2] || [];
 
-    // Eliminar tareas inv\u00E1lidas Y tareas importadas del calendario que no fueron creadas desde la app
-    // Las tareas creadas desde la app tienen id que empieza con 't' + timestamp
-    // Las importadas del calendario tienen cal_event_id que NO contiene [HabitTracker]
+    // Detectar y eliminar tareas importadas del calendario
+    // Los IDs de Google Calendar contienen @ o tienen formato especial
+    // Los IDs propios de la app empiezan con 't' seguido de timestamp num\u00E9rico
     var badTasks = rawTasks.filter(function(t){
-      var tit=t.titulo, fec=t.fecha_limite;
-      var invalidData = !tit||tit===null||String(tit).trim()===''||String(tit)==='undefined'||String(tit)==='(sin t\u00EDtulo)'||!fec||fec===null||String(fec).trim()===''||String(fec)==='undefined';
-      return invalidData;
+      var tit = t.titulo, fec = t.fecha_limite;
+      var invalidData = !tit || tit===null || String(tit).trim()==='' ||
+                        String(tit)==='undefined' || String(tit)==='(sin t\u00EDtulo)' ||
+                        !fec || fec===null || String(fec).trim()==='' || String(fec)==='undefined';
+      // ID de Google Calendar: contiene @, o no empieza con 't' seguido de d\u00EDgitos
+      var calendarId = t.id && (String(t.id).indexOf('@') !== -1 ||
+                       !/^t\d+/.test(String(t.id)));
+      return invalidData || calendarId;
     });
     var goodTasks = rawTasks.filter(function(t){
-      var tit=t.titulo, fec=t.fecha_limite;
-      return tit&&tit!==null&&String(tit).trim()!==''&&String(tit)!=='undefined'&&String(tit)!=='(sin t\u00EDtulo)'&&fec&&fec!==null&&String(fec).trim()!==''&&String(fec)!=='undefined';
+      var tit = t.titulo, fec = t.fecha_limite;
+      var validData = tit && tit!==null && String(tit).trim()!=='' &&
+                      String(tit)!=='undefined' && String(tit)!=='(sin t\u00EDtulo)' &&
+                      fec && fec!==null && String(fec).trim()!=='' && String(fec)!=='undefined';
+      var appId = t.id && /^t\d+/.test(String(t.id));
+      return validData && appId;
     });
-    badTasks.forEach(function(t){ sbDelete('tasks',t.id); });
+
+    // Eliminar las malas de Supabase en background
+    if (badTasks.length > 0) {
+      console.log('Eliminando ' + badTasks.length + ' tarea(s) importada(s) del calendario');
+      badTasks.forEach(function(t){ sbDelete('tasks', t.id).catch(function(){}); });
+    }
+
     S.tasks = goodTasks;
     bIdx();
 
