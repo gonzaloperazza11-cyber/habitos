@@ -1618,8 +1618,11 @@ function togT(id,val){
 
 function calComplete(calId, titulo, completada) {
   if (!calId) return Promise.resolve(null);
+  // Limpiar prefijos anteriores del t\u00EDtulo
+  var cleanTitle = (titulo||'').replace(/^[\u2705\u{1F4CC}\u{1F4CC}\s]+/u, '').trim();
+  var newSummary = (completada ? '\u2705 ' : '\ud83d\udccc ') + cleanTitle;
   return calApiCall('PATCH','events/'+encodeURIComponent(calId),{
-    summary:(completada?'\u2705 ':'\ud83d\udccc ')+titulo
+    summary: newSummary
   });
 }
 
