@@ -1601,18 +1601,16 @@ function syncTaskToCalendar(id) {
 }
 function togT(id,val){
   var t=S.tasks.find(function(t){return t.id===id;});
-  // Actualizar UI inmediatamente (optimista)
   if(t){ t.completada=val; bIdx(); rTasks(); rBoard(); }
-  // Persistir en Supabase
-  sbPatch('tasks',id,{completada:val}).then(function(){
+  fetch(SB_URL+'/rest/v1/tasks?id=eq.'+encodeURIComponent(String(id)),{
+    method:'PATCH',
+    headers:Object.assign({},SB_HDRS,{'Prefer':'return=minimal'}),
+    body:JSON.stringify({completada:val})
+  }).then(function(r){
+    if(!r.ok){ return r.text().then(function(b){ throw new Error(r.status+': '+b); }); }
     toast(val?'Completada':'Reabierta','ok');
-    // Calendar en background \u2014 si falla no importa
-    if(t&&t.cal_event_id){
-      try{ calComplete(t.cal_event_id,t.titulo||'',val); }catch(e){}
-    }
+    if(t&&t.cal_event_id){ try{ calComplete(t.cal_event_id,t.titulo||'',val); }catch(e){} }
   }).catch(function(err){
-    console.error('togT error:',err);
-    // Revertir UI si falla Supabase
     if(t){ t.completada=!val; bIdx(); rTasks(); rBoard(); }
     toast('Error al guardar','er');
   });
