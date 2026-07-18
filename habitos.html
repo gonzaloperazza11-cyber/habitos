@@ -894,15 +894,29 @@ function setUserBadge(name, picture) {
 function tryAutoLogin() {
   var saved = null;
   try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(e) {}
+
   if (!saved) {
     document.getElementById('loginScreen').style.display = 'flex';
     return;
   }
-  // Hay sesion guardada: mostrar datos y cargar
+
+  // Hay sesi\u00F3n guardada \u2014 mostrar datos del usuario y loading
   setUserBadge(saved.name, saved.picture);
   document.getElementById('loginScreen').classList.add('out');
   document.getElementById('ls').style.display = 'flex';
-  // Renovar token silenciosamente
+
+  var loginDone = false;
+
+  // Timeout de seguridad \u2014 si Google no responde en 4 segundos, arrancar igual
+  var loginTimeout = setTimeout(function() {
+    if (loginDone) return;
+    loginDone = true;
+    console.log('[auth] timeout \u2014 arrancando sin token de Google');
+    // Supabase no necesita token de Google \u2014 la app funciona igual
+    // Calendar/Tasks no van a funcionar hasta el pr\u00F3ximo uso, pero la app s\u00ED
+    initData();
+  }, 4000);
+
   try {
     var client = google.accounts.oauth2.initTokenClient({
       client_id: GCLIENT_ID,
@@ -910,15 +924,21 @@ function tryAutoLogin() {
       prompt: 'none',
       hint: saved.email || '',
       callback: function(resp) {
+        if (loginDone) return; // Ya arranc\u00F3 por timeout
+        clearTimeout(loginTimeout);
+        loginDone = true;
+
         if (resp.error || !resp.access_token) {
-          // No se pudo renovar: pedir login manual
-          document.getElementById('ls').style.display = 'none';
-          document.getElementById('loginScreen').classList.remove('out');
-          try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          // Token no renovable silenciosamente \u2014 arrancar igual sin token Google
+          console.log('[auth] silent refresh failed:', resp.error);
+          initData();
           return;
         }
+
         gToken = resp.access_token;
         gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+
+        // Actualizar datos del usuario en background, no bloquear la carga
         fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { 'Authorization': 'Bearer ' + gToken }
         }).then(function(r){ return r.json(); }).then(function(u) {
@@ -930,14 +950,20 @@ function tryAutoLogin() {
             }));
           } catch(e) {}
           setUserBadge(u.given_name || u.name || saved.name, u.picture || saved.picture);
-          initData();
-        }).catch(function(){ initData(); });
+        }).catch(function(){});
+
+        initData();
       }
     });
     client.requestAccessToken();
   } catch(e) {
-    document.getElementById('ls').style.display = 'none';
-    document.getElementById('loginScreen').classList.remove('out');
+    // google.accounts no disponible a\u00FAn
+    clearTimeout(loginTimeout);
+    if (!loginDone) {
+      loginDone = true;
+      document.getElementById('ls').style.display = 'none';
+      document.getElementById('loginScreen').classList.remove('out');
+    }
   }
 }
 
