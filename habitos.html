@@ -1266,6 +1266,8 @@ function goTab(tab) {
 
 // \u2500\u2500 HOY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 function rHoy() {
+  // Actualizar TODAY por si la app qued\u00F3 abierta de un d\u00EDa para el otro
+  TODAY = fmt(new Date());
   var ds=S.sel||TODAY;
   var active=S.habits.filter(function(h){ return h.activo; });
   var isHol=S.holidays.some(function(h){ return h.fecha===ds; });
@@ -1360,8 +1362,8 @@ function rHoy() {
     if(e.target.closest('.habit-drag-handle'))return;
     var row=e.target.closest('.habit-row:not(.maxed):not(.hol)');
     if(!row||isHol)return;
-    // No permitir marcar d\u00EDas futuros
-    if(ds>TODAY)return;
+    // Recalcular TODAY din\u00E1micamente
+    if(ds>fmt(new Date()))return;
     togH(ds,row.dataset.hid,row);
   };
 
@@ -1371,8 +1373,9 @@ function rHoy() {
 
 
 function togH(fecha,hid,el){
-  // No permitir marcar d\u00EDas futuros
-  if(fecha>TODAY){ toast('No pod\u00e9s marcar d\u00edas futuros','er'); return; }
+  // Recalcular TODAY en el momento del click (no usar el valor del inicio)
+  var todayNow = fmt(new Date());
+  if(fecha>todayNow){ toast('No pod\u00E9s marcar d\u00EDas futuros','er'); return; }
   el.style.pointerEvents='none';
   var adding=!el.classList.contains('done');
   if(adding){
