@@ -1312,13 +1312,11 @@ function rHoy() {
   for(var dk in IDX.byDate){if(dk>=wsS&&dk<=weS)(IDX.byDate[dk]||[]).forEach(function(l){if(wkMap[l.habit_id]!==undefined)wkMap[l.habit_id]++;});}
 
   var existing=cont.querySelectorAll('.habit-row');
-  // Verificar si el orden del DOM coincide con S.habits
   var orderMatch = existing.length===active.length && active.every(function(h,i){
     return existing[i] && existing[i].dataset.hid===String(h.id);
   });
 
   if(orderMatch){
-    // Orden correcto \u2014 solo actualizar estados
     var prevDone=cont.dataset.allDone==='1',allDoneNow=true;
     active.forEach(function(h,i){
       var el=existing[i],done=!!IDX.byHabitDate[ds+'|'+String(h.id)];
@@ -1327,42 +1325,39 @@ function rHoy() {
       if(!done)allDoneNow=false;
       el.classList.toggle('done',done);
       el.classList.toggle('maxed',maxed);
-      el.querySelector('.habit-freq-pill').textContent=wl+'/'+h.frecuencia_max+'\u00d7';
+      el.querySelector('.habit-freq-pill').textContent=wl+'/'+h.frecuencia_max+'\u00D7';
       el.dataset.hid=String(h.id);
     });
     cont.dataset.allDone=allDoneNow?'1':'0';
     if(allDoneNow&&!prevDone&&active.length>0)celebrateMob();
-    return;
+  } else {
+    cont.innerHTML='';
+    var frag=document.createDocumentFragment(),allDone=true;
+    active.forEach(function(h){
+      var done=!!IDX.byHabitDate[ds+'|'+String(h.id)];
+      var wl=wkMap[String(h.id)]||0;
+      var maxed=!done&&wl>=h.frecuencia_max;
+      if(!done)allDone=false;
+      var el=document.createElement('div');
+      el.className='habit-row'+(done?' done':'')+(maxed?' maxed':'');
+      el.dataset.hid=String(h.id);
+      el.innerHTML=
+        '<div class="habit-drag-handle"><span></span><span></span><span></span></div>'
+        +'<div class="habit-color-bar" style="background:'+h.color+'"></div>'
+        +'<div class="habit-info"><div class="habit-name">'+h.nombre+'</div>'
+        +'<div class="habit-freq-pill">'+(h.hora?'<span style="color:var(--text3);margin-right:6px">'+h.hora+'</span>':'')+wl+'/'+h.frecuencia_max+'\u00D7</div></div>'
+        +'<div class="habit-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>';
+      frag.appendChild(el);
+    });
+    cont.appendChild(frag);
+    cont.dataset.allDone=allDone?'1':'0';
   }
-  // Orden cambi\u00F3 o lista nueva \u2014 rebuild completo
 
-  cont.innerHTML='';
-  var frag=document.createDocumentFragment(),allDone=true;
-  active.forEach(function(h){
-    var done=!!IDX.byHabitDate[ds+'|'+String(h.id)];
-    var wl=wkMap[String(h.id)]||0;
-    var maxed=!done&&wl>=h.frecuencia_max;
-    if(!done)allDone=false;
-    var el=document.createElement('div');
-    el.className='habit-row'+(done?' done':'')+(maxed?' maxed':'');
-    el.dataset.hid=String(h.id);
-    el.innerHTML=
-      '<div class="habit-drag-handle"><span></span><span></span><span></span></div>'
-      +'<div class="habit-color-bar" style="background:'+h.color+'"></div>'
-      +'<div class="habit-info"><div class="habit-name">'+h.nombre+'</div>'
-      +'<div class="habit-freq-pill">'+(h.hora?'<span style="color:var(--text3);margin-right:6px">'+h.hora+'</span>':'')+wl+'/'+h.frecuencia_max+'\u00d7</div></div>'
-      +'<div class="habit-check"><svg viewBox="0 0 13 13"><polyline points="2,7 5,10 11,3"/></svg></div>';
-    frag.appendChild(el);
-  });
-  cont.appendChild(frag);
-  cont.dataset.allDone=allDone?'1':'0';
-
-  // Click para marcar (ignorar si viene del handle)
+  // Click SIEMPRE activo \u2014 fuera del bloque condicional
   cont.onclick=function(e){
     if(e.target.closest('.habit-drag-handle'))return;
     var row=e.target.closest('.habit-row:not(.maxed):not(.hol)');
     if(!row||isHol)return;
-    // Recalcular TODAY din\u00E1micamente
     if(ds>fmt(new Date()))return;
     togH(ds,row.dataset.hid,row);
   };
