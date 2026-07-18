@@ -1356,11 +1356,14 @@ function rHoy() {
   }
 
   // Click SIEMPRE activo \u2014 fuera del bloque condicional
+  // Click SIEMPRE activo
   cont.onclick=function(e){
+    console.log('[habito click] tag='+e.target.tagName+' cls='+e.target.className.toString().slice(0,30));
     if(e.target.closest('.habit-drag-handle'))return;
     var row=e.target.closest('.habit-row:not(.maxed):not(.hol)');
+    console.log('[habito click] row='+(row?row.dataset.hid:'NULL')+' isHol='+isHol+' ds='+ds+' hoy='+fmt(new Date()));
     if(!row||isHol)return;
-    if(ds>fmt(new Date()))return;
+    if(ds>fmt(new Date())){console.log('[habito click] BLOQUEADO futuro');return;}
     togH(ds,row.dataset.hid,row);
   };
 
