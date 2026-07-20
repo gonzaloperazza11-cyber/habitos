@@ -1584,27 +1584,32 @@ function sTask(){
   var ca=document.getElementById('tCa').value;
   var id='t'+Date.now();
 
+  // Optimista: agregar a UI inmediatamente
   var newTask={id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''};
   S.tasks.push(newTask);
   bIdx(); rTasks(); rCalCell(fe);
   closeBs('bsTask');
 
-  // Solo Supabase \u2014 Calendar es opcional
-  sbPost('tasks',{id:id,titulo:ti,fecha_limite:fe,detalle:de,categoria:ca,completada:false,cal_event_id:''})
-    .then(function(r){
-      var saved=Array.isArray(r)?r[0]:r;
-      if(saved&&saved.id){
-        var idx=S.tasks.findIndex(function(t){return t.id===id;});
-        if(idx>=0) S.tasks[idx]=Object.assign(S.tasks[idx],saved);
-      }
-      toast('Actividad guardada','ok');
-      // Intentar Calendar en background \u2014 si falla no importa
-      addToCalendar(id, ti, fe, de, ca);
-    }).catch(function(){
-      S.tasks=S.tasks.filter(function(t){return t.id!==id;});
-      bIdx(); rTasks(); rCalCell(fe);
-      toast('Error al guardar','er');
-    });
+  // Guardar en Supabase \u2014 usar return=minimal para evitar problemas de columnas
+  fetch(SB_URL+'/rest/v1/tasks', {
+    method: 'POST',
+    headers: Object.assign({}, SB_HDRS, {'Prefer': 'return=minimal'}),
+    body: JSON.stringify({id:id, titulo:ti, fecha_limite:fe, detalle:de, categoria:ca, completada:false, cal_event_id:''})
+  }).then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(txt){
+        throw new Error('POST tasks ' + r.status + ': ' + txt);
+      });
+    }
+    toast('Actividad guardada','ok');
+    addToCalendar(id, ti, fe, de, ca);
+  }).catch(function(err){
+    console.error('[sTask] error:', err);
+    // Revertir UI
+    S.tasks=S.tasks.filter(function(t){return t.id!==id;});
+    bIdx(); rTasks(); rCalCell(fe);
+    toast('Error al guardar: '+err.message.slice(0,60),'er');
+  });
 }
 
 // Agregar a Google Calendar \u2014 puede fallar sin problema
