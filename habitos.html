@@ -1671,28 +1671,51 @@ function sTask(){
 }
 
 // Agregar a Google Calendar \u2014 usa token existente si hay, sino omite silenciosamente
+// \u2500\u2500 CALENDAR SYNC ROBUSTO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Estrategia: pedir token fresco en cada operaci\u00F3n.
+// Si no hay token: reintentar autom\u00E1ticamente hasta MAX_RETRIES veces.
+// Sin intervenci\u00F3n del usuario \u2014 completamente silencioso.
+
 function addToCalendar(taskId, ti, fe, de, ca) {
-  // Si no hay token activo, intentar renovar silencioso una sola vez
-  var tokenToUse = (gToken && Date.now() < gTokenExpiry) ? gToken : null;
-  console.log('[addToCalendar] ti='+ti+' token='+(tokenToUse?'OK':'none'));
-  if (!tokenToUse) {
-    // Sin token \u2014 intentar calCreate de todas formas (getCalToken puede renovar)
-    calCreate(ti, fe, de, ca).then(function(calEventId){
-      if (!calEventId) { console.log('[addToCalendar] no calEventId'); return; }
+  _calSyncWithRetry(taskId, ti, fe, de, ca, 0);
+}
+
+function _calSyncWithRetry(taskId, ti, fe, de, ca, attempt) {
+  var MAX_RETRIES = 4;
+  var RETRY_DELAYS = [0, 2000, 5000, 10000]; // 0s, 2s, 5s, 10s
+
+  if (attempt >= MAX_RETRIES) {
+    console.log('[calSync] no se pudo sincronizar despu\u00E9s de '+MAX_RETRIES+' intentos');
+    return;
+  }
+
+  var delay = RETRY_DELAYS[attempt] || 10000;
+
+  setTimeout(function() {
+    getCalToken().then(function(token) {
+      if (!token) {
+        console.log('[calSync] intento '+(attempt+1)+': sin token, reintentando...');
+        _calSyncWithRetry(taskId, ti, fe, de, ca, attempt + 1);
+        return;
+      }
+      console.log('[calSync] intento '+(attempt+1)+': token OK, creando evento...');
+      return calCreate(ti, fe, de, ca);
+    }).then(function(calEventId) {
+      if (!calEventId) {
+        console.log('[calSync] intento '+(attempt+1)+': no se obtuvo calEventId');
+        _calSyncWithRetry(taskId, ti, fe, de, ca, attempt + 1);
+        return;
+      }
+      // \u00C9xito \u2014 guardar calEventId en memoria y Supabase
       var t = S.tasks.find(function(t){ return t.id===taskId; });
       if (t) t.cal_event_id = calEventId;
       sbPatch('tasks', taskId, {cal_event_id: calEventId}).catch(function(){});
-      console.log('[addToCalendar] OK calEventId='+calEventId);
-    }).catch(function(e){ console.log('[addToCalendar] sin calendar:',e); });
-    return;
-  }
-  calCreate(ti, fe, de, ca).then(function(calEventId){
-    console.log('[addToCalendar] calEventId='+calEventId);
-    if (!calEventId) return;
-    var t = S.tasks.find(function(t){ return t.id===taskId; });
-    if (t) t.cal_event_id = calEventId;
-    sbPatch('tasks', taskId, {cal_event_id: calEventId}).catch(function(){});
-  }).catch(function(e){ console.error('[addToCalendar] error:',e); });
+      console.log('[calSync] OK calEventId='+calEventId);
+    }).catch(function(e) {
+      console.log('[calSync] intento '+(attempt+1)+' error:', e);
+      _calSyncWithRetry(taskId, ti, fe, de, ca, attempt + 1);
+    });
+  }, delay);
 }
 
 // Agregar manualmente a Calendar desde el editor
