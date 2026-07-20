@@ -900,71 +900,48 @@ function tryAutoLogin() {
     return;
   }
 
-  // Hay sesi\u00F3n guardada \u2014 mostrar datos del usuario y loading
+  // Sesion guardada: arrancar Supabase INMEDIATAMENTE sin esperar Google
   setUserBadge(saved.name, saved.picture);
   document.getElementById('loginScreen').classList.add('out');
   document.getElementById('ls').style.display = 'flex';
+  initData();
 
-  var loginDone = false;
+  // En paralelo, renovar token Google silenciosamente
+  refreshGoogleTokenSilent(saved.email || '');
+}
 
-  // Timeout de seguridad \u2014 si Google no responde en 4 segundos, arrancar igual
-  var loginTimeout = setTimeout(function() {
-    if (loginDone) return;
-    loginDone = true;
-    console.log('[auth] timeout \u2014 arrancando sin token de Google');
-    // Supabase no necesita token de Google \u2014 la app funciona igual
-    // Calendar/Tasks no van a funcionar hasta el pr\u00F3ximo uso, pero la app s\u00ED
-    initData();
-  }, 4000);
-
+function refreshGoogleTokenSilent(email) {
+  if (typeof google === 'undefined' || !google.accounts) {
+    setTimeout(function(){ refreshGoogleTokenSilent(email); }, 1000);
+    return;
+  }
   try {
     var client = google.accounts.oauth2.initTokenClient({
       client_id: GCLIENT_ID,
       scope: GSCOPES,
       prompt: 'none',
-      hint: saved.email || '',
+      hint: email,
       callback: function(resp) {
-        if (loginDone) return; // Ya arranc\u00F3 por timeout
-        clearTimeout(loginTimeout);
-        loginDone = true;
-
-        if (resp.error || !resp.access_token) {
-          // Token no renovable silenciosamente \u2014 arrancar igual sin token Google
-          console.log('[auth] silent refresh failed:', resp.error);
-          initData();
-          return;
+        if (resp && resp.access_token) {
+          gToken = resp.access_token;
+          gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
+          fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': 'Bearer ' + gToken }
+          }).then(function(r){ return r.json(); }).then(function(u) {
+            try {
+              localStorage.setItem(SESSION_KEY, JSON.stringify({
+                name: u.given_name || u.name || '',
+                picture: u.picture || '',
+                email: u.email || email
+              }));
+              setUserBadge(u.given_name || u.name || '', u.picture || '');
+            } catch(e) {}
+          }).catch(function(){});
         }
-
-        gToken = resp.access_token;
-        gTokenExpiry = Date.now() + ((resp.expires_in || 3600) * 1000);
-
-        // Actualizar datos del usuario en background, no bloquear la carga
-        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { 'Authorization': 'Bearer ' + gToken }
-        }).then(function(r){ return r.json(); }).then(function(u) {
-          try {
-            localStorage.setItem(SESSION_KEY, JSON.stringify({
-              name: u.given_name || u.name || saved.name,
-              picture: u.picture || saved.picture,
-              email: u.email || saved.email
-            }));
-          } catch(e) {}
-          setUserBadge(u.given_name || u.name || saved.name, u.picture || saved.picture);
-        }).catch(function(){});
-
-        initData();
       }
     });
     client.requestAccessToken();
-  } catch(e) {
-    // google.accounts no disponible a\u00FAn
-    clearTimeout(loginTimeout);
-    if (!loginDone) {
-      loginDone = true;
-      document.getElementById('ls').style.display = 'none';
-      document.getElementById('loginScreen').classList.remove('out');
-    }
-  }
+  } catch(e) {}
 }
 
 function startApp() {
@@ -1632,8 +1609,11 @@ function sTask(){
 
 // Agregar a Google Calendar \u2014 puede fallar sin problema
 function addToCalendar(taskId, ti, fe, de, ca) {
-  if (!gToken) return; // Sin token, no hacer nada
-  calCreate(ti, fe, de, ca).then(function(calEventId){
+  // Pedir token en el momento \u2014 funciona aunque el auto-login haya arrancado sin \u00E9l
+  getCalToken().then(function(token) {
+    if (!token) return; // Sin cuenta de Google conectada
+    return calCreate(ti, fe, de, ca);
+  }).then(function(calEventId){
     if (!calEventId) return;
     var t = S.tasks.find(function(t){ return t.id===taskId; });
     if (t) t.cal_event_id = calEventId;
