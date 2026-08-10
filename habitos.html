@@ -188,7 +188,7 @@ input,select,textarea{font-size:16px !important}
 /* BOTTOM SHEETS */
 .bs-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0);pointer-events:none;transition:background .3s}
 .bs-overlay.open{background:rgba(0,0,0,.5);pointer-events:all}
-.bs{position:absolute;bottom:0;left:0;right:0;height:92vh;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.bs{position:absolute;bottom:0;left:0;right:0;max-height:92vh;height:auto;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow:hidden}
 .bs-overlay.open .bs{transform:none}
 .bs-handle{width:40px;height:5px;background:var(--border);border-radius:2px;margin:14px auto 0;flex-shrink:0}
 .bs-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -212,7 +212,7 @@ input,select,textarea{font-size:16px !important}
 
 /* DAY SELECT GRID (habit form) */
 .day-select-grid{display:flex;gap:6px}
-.day-select-btn{flex:1;aspect-ratio:1;border-radius:14px;border:2px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-family:var(--f);gap:2px}
+.day-select-btn{flex:1;height:56px;border-radius:14px;border:2px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-family:var(--f);gap:2px;flex-shrink:0}
 .day-select-btn .dl{font-size:15px;font-weight:700;color:var(--text2)}
 .day-select-btn .df{font-size:9px;color:var(--text3);font-weight:600}
 .day-select-btn.on{background:var(--accent);border-color:var(--accent)}
@@ -222,6 +222,13 @@ input,select,textarea{font-size:16px !important}
 .day-preset-chip:active{background:var(--bg2)}
 .freq-summary{background:var(--accentbg);border-radius:12px;padding:13px 16px;font-size:14px;color:var(--accent);font-weight:600}
 .freq-summary.warn{background:#FEF2F2;color:var(--red)}
+
+/* CAMPO DE FECHA robusto (evita bugs de renderizado de <input type=date> en iOS) */
+.date-field{position:relative}
+.date-display{width:100%;padding:20px;background:var(--bg2);border:2px solid transparent;border-radius:16px;font-family:var(--f);font-size:16px;color:var(--text);min-height:60px;height:60px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.date-display.placeholder{color:var(--text3)}
+.date-display svg{width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.date-native{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:none;cursor:pointer;margin:0;padding:0}
 
 /* MANAGE HABITS */
 .mh-list{padding:0 24px;display:flex;flex-direction:column;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + var(--safe))}
@@ -575,7 +582,12 @@ input,select,textarea{font-size:16px !important}
     <div class="bs-header"><div class="bs-title">Nueva actividad</div><button class="bs-close" onclick="closeBs('bsTask')">&#x2715;</button></div>
     <div class="bs-body">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="tTi" placeholder="Ej: Parcial de Operaciones"></div>
-      <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label><input class="bs-input" type="date" id="tFe"></div>
+      <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label>
+        <div class="date-field">
+          <div class="date-display placeholder" id="tFeDisplay"><span class="date-display-text">Elegir fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <input class="date-native" type="date" id="tFe">
+        </div>
+      </div>
       <div class="bs-field"><label class="bs-label">Detalle <span style="font-weight:400;color:var(--text3);font-size:10px">— us\u00e1 # para etiquetar</span></label><input class="bs-input" id="tDe" placeholder="Opcional · Ej: estudiar cap 4 #estudio"></div>
       <div class="bs-field"><label class="bs-label">Categor&iacute;a</label>
         <select class="bs-select" id="tCa"><option>Personal</option><option>Facultad</option><option>Trabajo</option><option>Emprendimiento</option></select>
@@ -593,7 +605,12 @@ input,select,textarea{font-size:16px !important}
     <div class="bs-body">
       <input type="hidden" id="etId">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="etTi" placeholder="T&iacute;tulo"></div>
-      <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label><input class="bs-input" type="date" id="etFe"></div>
+      <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label>
+        <div class="date-field">
+          <div class="date-display placeholder" id="etFeDisplay"><span class="date-display-text">Elegir fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <input class="date-native" type="date" id="etFe">
+        </div>
+      </div>
       <div class="bs-field"><label class="bs-label">Detalle <span style="font-weight:400;color:var(--text3);font-size:10px">— us\u00e1 # para etiquetar</span></label><input class="bs-input" id="etDe" placeholder="Opcional · Ej: preparar material #estudio"></div>
       <div class="bs-field"><label class="bs-label">Categor&iacute;a</label>
         <select class="bs-select" id="etCa"><option>Personal</option><option>Facultad</option><option>Trabajo</option><option>Emprendimiento</option></select>
@@ -722,7 +739,12 @@ input,select,textarea{font-size:16px !important}
       <input type="hidden" id="kbId">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="kbTi" placeholder="Ej: Preparar presentaci&oacute;n"></div>
       <div class="bs-field"><label class="bs-label">Descripci&oacute;n</label><input class="bs-input" id="kbDe" placeholder="Opcional"></div>
-      <div class="bs-field"><label class="bs-label">Fecha de vencimiento</label><input type="date" class="bs-input" id="kbFe"></div>
+      <div class="bs-field"><label class="bs-label">Fecha de vencimiento</label>
+        <div class="date-field">
+          <div class="date-display placeholder" id="kbFeDisplay"><span class="date-display-text">Sin fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <input class="date-native" type="date" id="kbFe">
+        </div>
+      </div>
       <div class="bs-field"><label class="bs-label">Estado</label>
         <select class="bs-select" id="kbSt">
           <option value="todo">Nueva</option>
@@ -790,7 +812,10 @@ input,select,textarea{font-size:16px !important}
       <!-- Fecha de vencimiento -->
       <div class="bs-field">
         <label class="bs-label">Fecha de vencimiento</label>
-        <input type="date" class="bs-input" id="kbDetailFecha">
+        <div class="date-field">
+          <div class="date-display placeholder" id="kbDetailFechaDisplay"><span class="date-display-text">Sin fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <input class="date-native" type="date" id="kbDetailFecha">
+        </div>
       </div>
       <!-- Progreso -->
       <div id="kbDetailProgress" style="background:var(--bg2);border-radius:14px;padding:14px 16px;display:none">
@@ -987,6 +1012,7 @@ function signOut() {
   try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
   if (gToken) google.accounts.oauth2.revoke(gToken, function(){});
   gToken = null; gTokenExpiry = 0;
+  document.getElementById('userBadge').dataset.hasUser = '0';
   document.getElementById('userBadge').style.display = 'none';
   document.getElementById('app').style.display = 'none';
   document.getElementById('ls').style.display = 'none';
@@ -1000,7 +1026,8 @@ function showLoginError(msg) {
 function setUserBadge(name, picture) {
   document.getElementById('userAvatar').src = picture || '';
   document.getElementById('userName').textContent = name;
-  document.getElementById('userBadge').style.display = 'flex';
+  document.getElementById('userBadge').dataset.hasUser = '1';
+  updateUserBadgeVisibility(currentTabForBadge);
 }
 function tryAutoLogin() {
   var saved = null;
@@ -1293,6 +1320,18 @@ function goTab(tab) {
   if (tab==='stats') rChart();
   if (tab==='board') rBoard();
   document.getElementById('boardFab').classList.toggle('show', tab==='board');
+  updateUserBadgeVisibility(tab);
+}
+
+// El botón de cerrar sesión solo se muestra en Stats, para no estorbar
+// el botón flotante del Board ni el flujo de carga de tareas/hábitos.
+var currentTabForBadge = 'hoy';
+function updateUserBadgeVisibility(tab){
+  currentTabForBadge = tab;
+  var badge = document.getElementById('userBadge');
+  if (!badge) return;
+  var hasUser = badge.dataset.hasUser === '1';
+  badge.style.display = (hasUser && tab==='stats') ? 'flex' : 'none';
 }
 
 // ── HOY ──────────────────────────
@@ -1649,7 +1688,7 @@ function rTasks(){
 function tSt(d,done){if(done)return{c:'c',l:'Completada'};if(d<0)return{c:'a',l:'Atrasada'};if(d===0)return{c:'u',l:'Hoy'};if(d<=5)return{c:'p',l:'Pronto'};return{c:'o',l:'A tiempo'};}
 
 function oAddTask(pre){
-  document.getElementById('tTi').value='';document.getElementById('tFe').value=pre||'';
+  document.getElementById('tTi').value='';setDateFieldValue('tFe','tFeDisplay','Elegir fecha',pre||'');
   document.getElementById('tDe').value='';document.getElementById('tCa').value='Personal';
   openBs('bsTask');
 }
@@ -1753,7 +1792,7 @@ function oEditTask(id){
   if(!t)return;
   document.getElementById('etId').value=t.id||'';
   document.getElementById('etTi').value=t.titulo||'';
-  document.getElementById('etFe').value=t.fecha_limite||'';
+  setDateFieldValue('etFe','etFeDisplay','Elegir fecha',t.fecha_limite||'');
   document.getElementById('etDe').value=t.detalle||'';
   document.getElementById('etCa').value=t.categoria||'Personal';
   openBs('bsEditTask');
@@ -2255,7 +2294,7 @@ function openKbDetail(id) {
   document.getElementById('kbDetailId').value = k.id;
   document.getElementById('kbDetailTitle').textContent = k.titulo;
   document.getElementById('kbDetailDesc').value = k.descripcion || '';
-  document.getElementById('kbDetailFecha').value = k.fecha_vencimiento || '';
+  setDateFieldValue('kbDetailFecha','kbDetailFechaDisplay','Sin fecha', k.fecha_vencimiento || '');
   ['todo','doing','done'].forEach(function(st){
     var pill = document.getElementById('kbPill'+st.charAt(0).toUpperCase()+st.slice(1));
     if (pill) { pill.className='estado-pill'; if(k.estado===st) pill.classList.add('ap-'+st); }
@@ -2384,7 +2423,7 @@ function oAddKanban() {
   document.getElementById('kbId').value = '';
   document.getElementById('kbTi').value = '';
   document.getElementById('kbDe').value = '';
-  document.getElementById('kbFe').value = '';
+  setDateFieldValue('kbFe','kbFeDisplay','Sin fecha','');
   document.getElementById('kbSt').value = kbCurrentTab;
   kbNewSubtasks = [];
   renderKbNewSubtasks();
@@ -2560,13 +2599,71 @@ function updateTaskFilterBtn() {
 // ── TOAST ──────────────────────────
 function toast(msg,type){var el=document.createElement('div');el.className='to '+(type||'ok');el.textContent=msg;document.getElementById('tz').appendChild(el);setTimeout(function(){el.remove();},2700);}
 
-// ── INIT extras (day-select grids + drag-scroll de tabs) ──────────────────────────
+// ── CAMPO DE FECHA robusto (evita fallos de renderizado del <input type=date> nativo en iOS) ──────────────────────────
+function fmtDateLong(ds){
+  if(!ds) return null;
+  var MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var p=ds.split('-');
+  return parseInt(p[2])+' '+MESES[parseInt(p[1])-1]+' '+p[0];
+}
+function refreshDateDisplay(inputId, displayId, placeholder){
+  var inp=document.getElementById(inputId), disp=document.getElementById(displayId);
+  if(!inp||!disp) return;
+  var txt=disp.querySelector('.date-display-text');
+  if(inp.value){ txt.textContent=fmtDateLong(inp.value); disp.classList.remove('placeholder'); }
+  else { txt.textContent=placeholder; disp.classList.add('placeholder'); }
+}
+function bindDateField(inputId, displayId, placeholder){
+  var inp=document.getElementById(inputId);
+  if(!inp) return;
+  inp.addEventListener('input', function(){ refreshDateDisplay(inputId, displayId, placeholder); });
+  inp.addEventListener('change', function(){ refreshDateDisplay(inputId, displayId, placeholder); });
+  refreshDateDisplay(inputId, displayId, placeholder);
+}
+function setDateFieldValue(inputId, displayId, placeholder, value){
+  var inp=document.getElementById(inputId);
+  if(!inp) return;
+  inp.value = value || '';
+  refreshDateDisplay(inputId, displayId, placeholder);
+}
+
+// ── Hojas que no se compriman ni queden inalcanzables al abrir el teclado ──────────────────────────
+function initKeyboardAwareSheets(){
+  function applyMaxHeight(){
+    if(!window.visualViewport) return;
+    var vh = window.visualViewport.height;
+    document.querySelectorAll('.bs-overlay.open .bs').forEach(function(s){ s.style.maxHeight = Math.round(vh*0.96)+'px'; });
+    document.querySelectorAll('.kb-detail-overlay.open .kb-detail-sheet').forEach(function(s){ s.style.maxHeight = Math.round(vh*0.96)+'px'; });
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', applyMaxHeight);
+    window.visualViewport.addEventListener('scroll', applyMaxHeight);
+  }
+  // Al enfocar un campo dentro de una hoja, asegurarse de que quede visible por encima del teclado
+  document.addEventListener('focusin', function(e){
+    var body = e.target.closest('.bs-body');
+    if (!body) return;
+    setTimeout(function(){
+      try { e.target.scrollIntoView({block:'center', behavior:'smooth'}); } catch(err) {}
+    }, 300);
+  });
+}
+
+// ── INIT extras (day-select grids + drag-scroll de tabs + campos de fecha + teclado) ──────────────────────────
 document.addEventListener('DOMContentLoaded', function(){
   renderDaySelectGrid('mhDaysGrid', addHabitDays, function(){ updateFreqSummary('mhFreqSummary', addHabitDays); });
   updateFreqSummary('mhFreqSummary', addHabitDays);
   renderDaySelectGrid('ehDaysGrid', editHabitDays, function(){ updateFreqSummary('ehFreqSummary', editHabitDays); });
   updateFreqSummary('ehFreqSummary', editHabitDays);
   initDragScroll(document.getElementById('kbTabs'));
+
+  bindDateField('tFe','tFeDisplay','Elegir fecha');
+  bindDateField('etFe','etFeDisplay','Elegir fecha');
+  bindDateField('kbFe','kbFeDisplay','Sin fecha');
+  bindDateField('kbDetailFecha','kbDetailFechaDisplay','Sin fecha');
+
+  initKeyboardAwareSheets();
+  updateUserBadgeVisibility('hoy');
 });
 
 </script>
