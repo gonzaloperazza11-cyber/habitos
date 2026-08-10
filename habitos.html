@@ -188,7 +188,7 @@ input,select,textarea{font-size:16px !important}
 /* BOTTOM SHEETS */
 .bs-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0);pointer-events:none;transition:background .3s}
 .bs-overlay.open{background:rgba(0,0,0,.5);pointer-events:all}
-.bs{position:absolute;bottom:0;left:0;right:0;max-height:92vh;height:auto;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.bs{position:absolute;bottom:0;left:0;right:0;max-height:92vh;max-height:92dvh;height:auto;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .35s cubic-bezier(.4,0,.2,1);overflow:hidden}
 .bs-overlay.open .bs{transform:none}
 .bs-handle{width:40px;height:5px;background:var(--border);border-radius:2px;margin:14px auto 0;flex-shrink:0}
 .bs-header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--border);flex-shrink:0}
@@ -196,11 +196,13 @@ input,select,textarea{font-size:16px !important}
 .bs-close{width:36px;height:36px;border-radius:99px;background:var(--bg2);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text2);font-family:var(--f)}
 .bs-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:28px 24px;display:flex;flex-direction:column;gap:22px;padding-bottom:calc(48px + var(--safe))}
 .bs-body::-webkit-scrollbar{display:none}
-.bs-field{display:flex;flex-direction:column;gap:10px;overflow:hidden;flex-shrink:0}
-/* Ningún renglón dentro de una hoja se comprime: si no entra todo, se activa el scroll del contenedor en vez de achicar el contenido */
-.bs-body>*{flex-shrink:0}
+.bs-field{display:flex;flex-direction:column;gap:10px;overflow:hidden;flex:0 0 auto}
+/* Cada renglón del formulario es un contenedor rígido: nunca se comprime.
+   Si el contenido total no entra, el que hace scroll es .bs-body (el formulario completo),
+   no los renglones individuales. */
+.bs-body>*{flex:0 0 auto}
 .bs-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
-.bs-input{width:100%;padding:20px;background:var(--bg2);border:2px solid transparent;border-radius:16px;font-family:var(--f);font-size:16px !important;color:var(--text);outline:none;min-height:60px;height:60px;flex-shrink:0;transition:border-color .15s,background .15s;box-sizing:border-box;max-width:100%}
+.bs-input{width:100%;padding:20px;background:var(--bg2);border:2px solid transparent;border-radius:16px;font-family:var(--f);font-size:16px !important;color:var(--text);outline:none;min-height:60px;height:60px;flex:0 0 auto;transition:border-color .15s,background .15s;box-sizing:border-box;max-width:100%}
 .bs-input[type="date"]{-webkit-appearance:none;appearance:none;max-width:100%;overflow:hidden}
 .bs-input:focus{background:var(--surface);border-color:var(--accent)}
 .bs-input::placeholder{color:var(--text3)}
@@ -307,7 +309,7 @@ input,select,textarea{font-size:16px !important}
 /* KANBAN DETAIL SHEET */
 .kb-detail-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0);pointer-events:none;transition:background .25s}
 .kb-detail-overlay.open{background:rgba(0,0,0,.45);pointer-events:all}
-.kb-detail-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;max-height:92vh;overflow:hidden;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.kb-detail-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;max-height:92vh;max-height:92dvh;overflow:hidden;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
 .kb-detail-overlay.open .kb-detail-sheet{transform:none}
 /* ESTADO PILLS */
 .estado-pills{display:flex;gap:8px}
@@ -2586,24 +2588,9 @@ function toast(msg,type){var el=document.createElement('div');el.className='to '
 
 // ── Hojas que no se compriman ni queden inalcanzables al abrir el teclado ──────────────────────────
 function initKeyboardAwareSheets(){
-  function applyMaxHeight(){
-    if(!window.visualViewport) return;
-    var vh = window.visualViewport.height;
-    document.querySelectorAll('.bs-overlay.open .bs').forEach(function(s){ s.style.maxHeight = Math.round(vh*0.96)+'px'; });
-    document.querySelectorAll('.kb-detail-overlay.open .kb-detail-sheet').forEach(function(s){ s.style.maxHeight = Math.round(vh*0.96)+'px'; });
-  }
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', applyMaxHeight);
-    window.visualViewport.addEventListener('scroll', applyMaxHeight);
-  }
-  // Al enfocar un campo dentro de una hoja, asegurarse de que quede visible por encima del teclado.
-  document.addEventListener('focusin', function(e){
-    var body = e.target.closest('.bs-body');
-    if (!body) return;
-    setTimeout(function(){
-      try { e.target.scrollIntoView({block:'center', behavior:'smooth'}); } catch(err) {}
-    }, 300);
-  });
+  // Al enfocar un campo dentro de una hoja, el navegador ya se encarga de mantenerlo visible
+  // por encima del teclado (scroll nativo dentro del contenedor con overflow-y:auto).
+  // No forzamos ningún cambio de altura por JS: eso es lo que generaba compresión de renglones.
 }
 
 // ── INIT extras (day-select grids + drag-scroll de tabs + campos de fecha + teclado) ──────────────────────────
