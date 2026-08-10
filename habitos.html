@@ -2639,13 +2639,26 @@ function initKeyboardAwareSheets(){
     window.visualViewport.addEventListener('resize', applyMaxHeight);
     window.visualViewport.addEventListener('scroll', applyMaxHeight);
   }
-  // Al enfocar un campo dentro de una hoja, asegurarse de que quede visible por encima del teclado
+  // Al enfocar un campo dentro de una hoja, asegurarse de que quede visible por encima del teclado.
+  // Se excluyen los inputs de fecha (.date-native): el scroll automático interfiere con el
+  // selector nativo de iOS y puede impedir que se abra o que se pueda elegir una fecha.
   document.addEventListener('focusin', function(e){
+    if (e.target.classList && e.target.classList.contains('date-native')) return;
     var body = e.target.closest('.bs-body');
     if (!body) return;
     setTimeout(function(){
       try { e.target.scrollIntoView({block:'center', behavior:'smooth'}); } catch(err) {}
     }, 300);
+  });
+
+  // Soporte extra para navegadores que exponen showPicker() (Chrome/Android);
+  // en iOS Safari no hace falta, el tap sobre el input transparente ya abre el selector nativo.
+  document.querySelectorAll('.date-native').forEach(function(inp){
+    inp.addEventListener('click', function(){
+      if (typeof inp.showPicker === 'function') {
+        try { inp.showPicker(); } catch(err) {}
+      }
+    });
   });
 }
 
