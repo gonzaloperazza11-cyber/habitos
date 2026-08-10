@@ -223,13 +223,6 @@ input,select,textarea{font-size:16px !important}
 .freq-summary{background:var(--accentbg);border-radius:12px;padding:13px 16px;font-size:14px;color:var(--accent);font-weight:600}
 .freq-summary.warn{background:#FEF2F2;color:var(--red)}
 
-/* CAMPO DE FECHA robusto (evita bugs de renderizado de <input type=date> en iOS) */
-.date-field{position:relative}
-.date-display{width:100%;padding:20px;background:var(--bg2);border:2px solid transparent;border-radius:16px;font-family:var(--f);font-size:16px;color:var(--text);min-height:60px;height:60px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
-.date-display.placeholder{color:var(--text3)}
-.date-display svg{width:18px;height:18px;stroke:var(--text3);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.date-native{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:none;cursor:pointer;margin:0;padding:0}
-
 /* MANAGE HABITS */
 .mh-list{padding:0 24px;display:flex;flex-direction:column;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(24px + var(--safe))}
 .mh-list::-webkit-scrollbar{display:none}
@@ -583,10 +576,7 @@ input,select,textarea{font-size:16px !important}
     <div class="bs-body">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="tTi" placeholder="Ej: Parcial de Operaciones"></div>
       <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label>
-        <div class="date-field">
-          <div class="date-display placeholder" id="tFeDisplay"><span class="date-display-text">Elegir fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
-          <input class="date-native" type="date" id="tFe">
-        </div>
+        <input type="date" class="bs-input" id="tFe">
       </div>
       <div class="bs-field"><label class="bs-label">Detalle <span style="font-weight:400;color:var(--text3);font-size:10px">— us\u00e1 # para etiquetar</span></label><input class="bs-input" id="tDe" placeholder="Opcional · Ej: estudiar cap 4 #estudio"></div>
       <div class="bs-field"><label class="bs-label">Categor&iacute;a</label>
@@ -606,10 +596,7 @@ input,select,textarea{font-size:16px !important}
       <input type="hidden" id="etId">
       <div class="bs-field"><label class="bs-label">T&iacute;tulo *</label><input class="bs-input" id="etTi" placeholder="T&iacute;tulo"></div>
       <div class="bs-field"><label class="bs-label">Fecha l&iacute;mite *</label>
-        <div class="date-field">
-          <div class="date-display placeholder" id="etFeDisplay"><span class="date-display-text">Elegir fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
-          <input class="date-native" type="date" id="etFe">
-        </div>
+        <input type="date" class="bs-input" id="etFe">
       </div>
       <div class="bs-field"><label class="bs-label">Detalle <span style="font-weight:400;color:var(--text3);font-size:10px">— us\u00e1 # para etiquetar</span></label><input class="bs-input" id="etDe" placeholder="Opcional · Ej: preparar material #estudio"></div>
       <div class="bs-field"><label class="bs-label">Categor&iacute;a</label>
@@ -755,10 +742,7 @@ input,select,textarea{font-size:16px !important}
         </div>
       </div>
       <div class="bs-field"><label class="bs-label">Fecha de vencimiento</label>
-        <div class="date-field">
-          <div class="date-display placeholder" id="kbFeDisplay"><span class="date-display-text">Sin fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
-          <input class="date-native" type="date" id="kbFe">
-        </div>
+        <input type="date" class="bs-input" id="kbFe">
       </div>
       <button class="bs-submit" id="kbSubmit" onclick="sKanban()">Agregar tarea</button>
     </div>
@@ -837,10 +821,7 @@ input,select,textarea{font-size:16px !important}
       <!-- Fecha de vencimiento (al final, es lo último que se carga) -->
       <div class="bs-field">
         <label class="bs-label">Fecha de vencimiento</label>
-        <div class="date-field">
-          <div class="date-display placeholder" id="kbDetailFechaDisplay"><span class="date-display-text">Sin fecha</span><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
-          <input class="date-native" type="date" id="kbDetailFecha">
-        </div>
+        <input type="date" class="bs-input" id="kbDetailFecha">
       </div>
       <!-- Guardar -->
       <button class="bs-submit" onclick="saveKbDetail()">Guardar cambios</button>
@@ -1688,7 +1669,7 @@ function rTasks(){
 function tSt(d,done){if(done)return{c:'c',l:'Completada'};if(d<0)return{c:'a',l:'Atrasada'};if(d===0)return{c:'u',l:'Hoy'};if(d<=5)return{c:'p',l:'Pronto'};return{c:'o',l:'A tiempo'};}
 
 function oAddTask(pre){
-  document.getElementById('tTi').value='';setDateFieldValue('tFe','tFeDisplay','Elegir fecha',pre||'');
+  document.getElementById('tTi').value='';document.getElementById('tFe').value=pre||'';
   document.getElementById('tDe').value='';document.getElementById('tCa').value='Personal';
   openBs('bsTask');
 }
@@ -1792,7 +1773,7 @@ function oEditTask(id){
   if(!t)return;
   document.getElementById('etId').value=t.id||'';
   document.getElementById('etTi').value=t.titulo||'';
-  setDateFieldValue('etFe','etFeDisplay','Elegir fecha',t.fecha_limite||'');
+  document.getElementById('etFe').value=t.fecha_limite||'';
   document.getElementById('etDe').value=t.detalle||'';
   document.getElementById('etCa').value=t.categoria||'Personal';
   openBs('bsEditTask');
@@ -2294,7 +2275,7 @@ function openKbDetail(id) {
   document.getElementById('kbDetailId').value = k.id;
   document.getElementById('kbDetailTitle').textContent = k.titulo;
   document.getElementById('kbDetailDesc').value = k.descripcion || '';
-  setDateFieldValue('kbDetailFecha','kbDetailFechaDisplay','Sin fecha', k.fecha_vencimiento || '');
+  document.getElementById('kbDetailFecha').value = k.fecha_vencimiento || '';
   ['todo','doing','done'].forEach(function(st){
     var pill = document.getElementById('kbPill'+st.charAt(0).toUpperCase()+st.slice(1));
     if (pill) { pill.className='estado-pill'; if(k.estado===st) pill.classList.add('ap-'+st); }
@@ -2423,7 +2404,7 @@ function oAddKanban() {
   document.getElementById('kbId').value = '';
   document.getElementById('kbTi').value = '';
   document.getElementById('kbDe').value = '';
-  setDateFieldValue('kbFe','kbFeDisplay','Sin fecha','');
+  document.getElementById('kbFe').value = '';
   document.getElementById('kbSt').value = kbCurrentTab;
   kbNewSubtasks = [];
   renderKbNewSubtasks();
@@ -2599,34 +2580,6 @@ function updateTaskFilterBtn() {
 // ── TOAST ──────────────────────────
 function toast(msg,type){var el=document.createElement('div');el.className='to '+(type||'ok');el.textContent=msg;document.getElementById('tz').appendChild(el);setTimeout(function(){el.remove();},2700);}
 
-// ── CAMPO DE FECHA robusto (evita fallos de renderizado del <input type=date> nativo en iOS) ──────────────────────────
-function fmtDateLong(ds){
-  if(!ds) return null;
-  var MESES=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  var p=ds.split('-');
-  return parseInt(p[2])+' '+MESES[parseInt(p[1])-1]+' '+p[0];
-}
-function refreshDateDisplay(inputId, displayId, placeholder){
-  var inp=document.getElementById(inputId), disp=document.getElementById(displayId);
-  if(!inp||!disp) return;
-  var txt=disp.querySelector('.date-display-text');
-  if(inp.value){ txt.textContent=fmtDateLong(inp.value); disp.classList.remove('placeholder'); }
-  else { txt.textContent=placeholder; disp.classList.add('placeholder'); }
-}
-function bindDateField(inputId, displayId, placeholder){
-  var inp=document.getElementById(inputId);
-  if(!inp) return;
-  inp.addEventListener('input', function(){ refreshDateDisplay(inputId, displayId, placeholder); });
-  inp.addEventListener('change', function(){ refreshDateDisplay(inputId, displayId, placeholder); });
-  refreshDateDisplay(inputId, displayId, placeholder);
-}
-function setDateFieldValue(inputId, displayId, placeholder, value){
-  var inp=document.getElementById(inputId);
-  if(!inp) return;
-  inp.value = value || '';
-  refreshDateDisplay(inputId, displayId, placeholder);
-}
-
 // ── Hojas que no se compriman ni queden inalcanzables al abrir el teclado ──────────────────────────
 function initKeyboardAwareSheets(){
   function applyMaxHeight(){
@@ -2640,25 +2593,12 @@ function initKeyboardAwareSheets(){
     window.visualViewport.addEventListener('scroll', applyMaxHeight);
   }
   // Al enfocar un campo dentro de una hoja, asegurarse de que quede visible por encima del teclado.
-  // Se excluyen los inputs de fecha (.date-native): el scroll automático interfiere con el
-  // selector nativo de iOS y puede impedir que se abra o que se pueda elegir una fecha.
   document.addEventListener('focusin', function(e){
-    if (e.target.classList && e.target.classList.contains('date-native')) return;
     var body = e.target.closest('.bs-body');
     if (!body) return;
     setTimeout(function(){
       try { e.target.scrollIntoView({block:'center', behavior:'smooth'}); } catch(err) {}
     }, 300);
-  });
-
-  // Soporte extra para navegadores que exponen showPicker() (Chrome/Android);
-  // en iOS Safari no hace falta, el tap sobre el input transparente ya abre el selector nativo.
-  document.querySelectorAll('.date-native').forEach(function(inp){
-    inp.addEventListener('click', function(){
-      if (typeof inp.showPicker === 'function') {
-        try { inp.showPicker(); } catch(err) {}
-      }
-    });
   });
 }
 
@@ -2670,10 +2610,7 @@ document.addEventListener('DOMContentLoaded', function(){
   updateFreqSummary('ehFreqSummary', editHabitDays);
   initDragScroll(document.getElementById('kbTabs'));
 
-  bindDateField('tFe','tFeDisplay','Elegir fecha');
-  bindDateField('etFe','etFeDisplay','Elegir fecha');
-  bindDateField('kbFe','kbFeDisplay','Sin fecha');
-  bindDateField('kbDetailFecha','kbDetailFechaDisplay','Sin fecha');
+  // (los campos de fecha vuelven a ser inputs nativos simples, no requieren binding extra)
 
   initKeyboardAwareSheets();
   updateUserBadgeVisibility('hoy');
