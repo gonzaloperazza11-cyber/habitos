@@ -1074,8 +1074,8 @@ function handleRealtimeChange(table, payload) {
         rHoy(); rStats();
         break;
       case 'log':
-        if (type==='INSERT') { if(!S.log.find(function(l){return l.id===record.id;})) S.log.push(record); }
-        else if (type==='DELETE') { S.log=S.log.filter(function(l){return l.id!==oldRecord.id;}); }
+        if (type==='INSERT') { if(!S.log.find(function(l){return l.fecha===record.fecha && String(l.habit_id)===String(record.habit_id);})) S.log.push(record); }
+        else if (type==='DELETE') { S.log=S.log.filter(function(l){return !(l.fecha===oldRecord.fecha && String(l.habit_id)===String(oldRecord.habit_id));}); }
         bIdx(); rHoy(); rCal(); rStats();
         break;
       case 'tasks':
